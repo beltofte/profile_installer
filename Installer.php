@@ -19,7 +19,7 @@
  * @see http://php.net/manual/en/class.splsubject.php
  * @see http://php.net/manual/en/class.splobjectstorage.php
  */
-abstract class Installer implements SplSubject {
+abstract class Installer implements SplSubject, InstallProfile {
 
   /**
    * These constants represent different states of the installation process
@@ -41,13 +41,27 @@ abstract class Installer implements SplSubject {
 
   // Store attached subprofiles ("observers") here.
   private $storage;
-  // Keep track of which "hook" is being "invoked".
+
+  // Keep track of which "hook" is being "invoked", that is, which install method
+  // has been called by the base profile.
   private $hook;
-  // Drupal install state.
+
+  // Drupal install state passed by reference during hook_install_tasks, and as
+  // context via hook_install_tasks_alter.
   private $install_state;
-  // Array of tasks to be returned to base profiles'
+
+  // Array of tasks to be returned by base profile via hook_install_tasks or
+  // modified via hook_install_tasks_alter.
   private $tasks;
+
+  // Modules declared as dependencies by subprofiles, to be installed by Installer.
   private $dependencies;
+
+  // Dependencies successfully installed.
+  private $installed;
+
+  // Variables available via hook_form_FORM_ID_alter and submit handler for
+  // install_configure_form.
   private $form;
   private $form_state;
 
@@ -59,7 +73,7 @@ abstract class Installer implements SplSubject {
   }
 
   /**
-   * Provides public function to instantiate Installer.
+   * Installer is a singleton. This method provides a public function to instantiate Installer.
    *
    * @return obj
    *   Installer instance.
@@ -72,13 +86,13 @@ abstract class Installer implements SplSubject {
   }
 
   /**
-   * SplObserver interface.
+   * SplObserver interface. ====================================================
    */
-  function attach( Subprofile $observer ) {
+  function attach( SplObserver $observer ) {
     $this->storage->attach( $observer );
   }
 
-  function detach( Subprofile $observer ) {
+  function detach( SplObserver $observer ) {
     $this->storage->detach( $observer );
   }
 
@@ -89,21 +103,55 @@ abstract class Installer implements SplSubject {
   }
 
   /**
-   * CONTINUE HERE. implements hooks for notify/install subprofiling.
+   * InstallProfile interface. =================================================
    */
-    /*
-  function getDependencies() {}
-  function alterDependencies() {}
-  function getInstallTasks() {}
-  function alterInstallTasks() {}
-  function install() {}
-  function alterInstallConfigureForm() {}
-  function submitInstallConfigureForm() {}
-    */
+  function getDependencies() {
+    $this->setHook(INSTALLER_GET_DEPENDENCIES);
+    $this->notify();
+    return $this->dependencies;
+  }
 
-    /**
-    * Getters and setters.
-    */
+  function alterDependencies() {
+    $this->setHook(INSTALLER_ALTER_DEPENDENCIES);
+    $this->notify();
+  }
+
+  function getInstallTasks($install_state) {
+    $this->setHook(INSTALLER_GET_INSTALL_TASKS);
+    $this->setInstallState($install_state);
+    $this->notify();
+    return $this->tasks;
+  }
+
+  function alterInstallTasks($tasks, $install_state) {
+    $this->setHook(INSTALLER_ALTER_INSTALL_TASKS);
+    $this->setInstallState($install_state);
+    $this->notify();
+    return $this->tasks;
+  }
+
+  function install() {
+    $this->setHook(INSTALLER_INSTALL);
+    $this->notify();
+  }
+
+  function alterInstallConfigureForm($form, $form_state) {
+    $this->form = $form;
+    $this->form_state = $form_state;
+    $this->setHook(INSTALLER_ALTER_INSTALL_CONFIGURE_FORM);
+    $this->notify();
+  }
+
+  function submitInstallConfigureForm($form, $form_state) {
+    $this->form = $form;
+    $this->form_state = $form_state;
+    $this->setHook(INSTALLER_SUBMIT_INSTALL_CONFIGURE_FORM);
+    $this->notify();
+  }
+
+  /**
+   * Getters and setters. ======================================================
+   */
   function getHook() {
     return $this->hook;
   }
@@ -132,6 +180,30 @@ abstract class Installer implements SplSubject {
       self::INSTALLER_SUBMIT_INSTALL_CONFIGURE_FORM,
     );
     return in_array($hook, $valid);
+  }
+
+  function getInstallState() {
+    $available = array(
+      self::INSTALLER_GET_INSTALL_TASKS,
+      self::INSTALLER_ALTER_INSTALL_TASKS
+    );
+    if (!in_array($this->getHook(), $available)) {
+      throw new Exception("install_state is not available");
+    }
+
+    return $this->install_state;
+  }
+
+  function setInstallState($install_state) {
+    $this->install_state = $install_state;
+  }
+
+  function setDependencies(array $dependencies) {
+    $this->dependencies = $dependencies;
+  }
+
+  function addDependencies(array $dependencies) {
+    $this->dependencies = array_merge($$this->dependencies, $dependencies);
   }
 
 }
