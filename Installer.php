@@ -88,15 +88,15 @@ abstract class Installer implements SplSubject, InstallProfile {
   /**
    * SplObserver interface. ====================================================
    */
-  function attach( SplObserver $observer ) {
+  public function attach( SplObserver $observer ) {
     $this->storage->attach( $observer );
   }
 
-  function detach( SplObserver $observer ) {
+  public function detach( SplObserver $observer ) {
     $this->storage->detach( $observer );
   }
 
-  function notify() {
+  public function notify() {
     foreach ( $this->storage as $obs ) {
       $obs->update( $this );
     }
@@ -105,44 +105,45 @@ abstract class Installer implements SplSubject, InstallProfile {
   /**
    * InstallProfile interface. =================================================
    */
-  function getDependencies() {
+  public function getDependencies() {
     $this->setHook(INSTALLER_GET_DEPENDENCIES);
     $this->notify();
     return $this->dependencies;
   }
 
-  function alterDependencies() {
+  public function alterDependencies() {
     $this->setHook(INSTALLER_ALTER_DEPENDENCIES);
     $this->notify();
+    return $this->dependencies;
   }
 
-  function getInstallTasks($install_state) {
+  public function getInstallTasks($install_state) {
     $this->setHook(INSTALLER_GET_INSTALL_TASKS);
     $this->setInstallState($install_state);
     $this->notify();
     return $this->tasks;
   }
 
-  function alterInstallTasks($tasks, $install_state) {
+  public function alterInstallTasks($tasks, $install_state) {
     $this->setHook(INSTALLER_ALTER_INSTALL_TASKS);
     $this->setInstallState($install_state);
     $this->notify();
     return $this->tasks;
   }
 
-  function install() {
+  public function install() {
     $this->setHook(INSTALLER_INSTALL);
     $this->notify();
   }
 
-  function alterInstallConfigureForm($form, $form_state) {
+  public function alterInstallConfigureForm($form, $form_state) {
     $this->form = $form;
     $this->form_state = $form_state;
     $this->setHook(INSTALLER_ALTER_INSTALL_CONFIGURE_FORM);
     $this->notify();
   }
 
-  function submitInstallConfigureForm($form, $form_state) {
+  public function submitInstallConfigureForm($form, $form_state) {
     $this->form = $form;
     $this->form_state = $form_state;
     $this->setHook(INSTALLER_SUBMIT_INSTALL_CONFIGURE_FORM);
@@ -152,11 +153,11 @@ abstract class Installer implements SplSubject, InstallProfile {
   /**
    * Getters and setters. ======================================================
    */
-  function getHook() {
+  public function getHook() {
     return $this->hook;
   }
 
-  function setHook( $hook ) {
+  public function setHook( $hook ) {
     if (!$this->isValidHook($hook)) {
       throw new Exception("Cannot set an invalid state: {$hook}");
     }
@@ -182,7 +183,7 @@ abstract class Installer implements SplSubject, InstallProfile {
     return in_array($hook, $valid);
   }
 
-  function getInstallState() {
+  public function getInstallState() {
     $available = array(
       self::INSTALLER_GET_INSTALL_TASKS,
       self::INSTALLER_ALTER_INSTALL_TASKS
@@ -194,16 +195,32 @@ abstract class Installer implements SplSubject, InstallProfile {
     return $this->install_state;
   }
 
-  function setInstallState($install_state) {
+  public function setInstallState($install_state) {
     $this->install_state = $install_state;
   }
 
-  function setDependencies(array $dependencies) {
+  public function setDependencies(array $dependencies) {
     $this->dependencies = $dependencies;
   }
 
-  function addDependencies(array $dependencies) {
+  public function addDependencies(array $dependencies) {
     $this->dependencies = array_merge($$this->dependencies, $dependencies);
+  }
+
+  public function getForm() {
+    return $this->form;
+  }
+
+  public function setForm($form) {
+    $this->form = $form;
+  }
+
+  public function getFormState() {
+    return $this->form_state;
+  }
+
+  public function setFormState($form_state) {
+    $this->form_state = $form_state;
   }
 
 }
