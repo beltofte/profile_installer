@@ -106,8 +106,11 @@ abstract class Installer implements SplSubject, InstallProfile {
    * InstallProfile interface. =================================================
    */
   public function getDependencies() {
-    $this->setHook(INSTALLER_GET_DEPENDENCIES);
-    $this->notify();
+    // Only retrieve dependencies from subprofiles once.
+    if (empty($this->dependencies)) {
+      $this->setHook(INSTALLER_GET_DEPENDENCIES);
+      $this->notify();
+    }
     return $this->dependencies;
   }
 
@@ -118,9 +121,12 @@ abstract class Installer implements SplSubject, InstallProfile {
   }
 
   public function getInstallTasks($install_state) {
-    $this->setHook(INSTALLER_GET_INSTALL_TASKS);
-    $this->setInstallState($install_state);
-    $this->notify();
+    // Only retreive install tasks from subprofiles once.
+    if (emplty($this->tasks)) {
+      $this->setHook(INSTALLER_GET_INSTALL_TASKS);
+      $this->setInstallState($install_state);
+      $this->notify();
+    }
     return $this->tasks;
   }
 
@@ -189,21 +195,44 @@ abstract class Installer implements SplSubject, InstallProfile {
       self::INSTALLER_ALTER_INSTALL_TASKS
     );
     if (!in_array($this->getHook(), $available)) {
-      throw new Exception("install_state is not available");
+      throw new Exception("install_state is only available via " . implode(', ', $available));
     }
 
     return $this->install_state;
   }
 
   public function setInstallState($install_state) {
+   $available = array(
+     self::INSTALLER_GET_INSTALL_TASKS,
+   );
+    if (!in_array($this->getHook(), $available)) {
+      throw new Exception("install_state can only be set via " . implode(', ', $available));
+    }
+
     $this->install_state = $install_state;
   }
 
   public function setDependencies(array $dependencies) {
+    $available = array(
+      self::INSTALLER_GET_DEPENDENCIES,
+      self::INSTALLER_ALTER_DEPENDENCIES,
+    );
+    if (!in_array($this->getHook(), $available)) {
+      throw new Exception('dependencies can only be set via ' . implode(', ', $available));
+    }
+
     $this->dependencies = $dependencies;
   }
 
   public function addDependencies(array $dependencies) {
+    $available = array(
+      self::INSTALLER_GET_DEPENDENCIES,
+      self::INSTALLER_ALTER_DEPENDENCIES,
+    );
+    if (!in_array($this->getHook(), $available)) {
+      throw new Exception('dependencies can only be added via ' . implode(', ', $available));
+    }
+
     $this->dependencies = array_merge($$this->dependencies, $dependencies);
   }
 
