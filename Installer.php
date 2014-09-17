@@ -16,6 +16,7 @@
  * instantiating Installer, implementing standard Drupal hooks for install profiles,
  * and handing off control to the installer.
  *
+ * @see http://php.net/spl
  * @see http://php.net/manual/en/class.splsubject.php
  * @see http://php.net/manual/en/class.splobjectstorage.php
  */
@@ -202,38 +203,44 @@ abstract class Installer implements SplSubject, InstallProfile {
   }
 
   public function setInstallState($install_state) {
-   $available = array(
-     self::INSTALLER_GET_INSTALL_TASKS,
-   );
-    if (!in_array($this->getHook(), $available)) {
-      throw new Exception("install_state can only be set via " . implode(', ', $available));
-    }
-
+    $this->_checkSetter('install_state', 'set', array(self::INSTALLER_GET_INSTALL_TASKS));
     $this->install_state = $install_state;
   }
 
   public function setDependencies(array $dependencies) {
-    $available = array(
+    $this->_checkSetter('dependencies', 'set', array(
       self::INSTALLER_GET_DEPENDENCIES,
       self::INSTALLER_ALTER_DEPENDENCIES,
-    );
-    if (!in_array($this->getHook(), $available)) {
-      throw new Exception('dependencies can only be set via ' . implode(', ', $available));
-    }
-
+    ));
     $this->dependencies = $dependencies;
   }
 
   public function addDependencies(array $dependencies) {
-    $available = array(
+    $this->_checkSetter('dependencies', 'added', array(
       self::INSTALLER_GET_DEPENDENCIES,
       self::INSTALLER_ALTER_DEPENDENCIES,
-    );
-    if (!in_array($this->getHook(), $available)) {
-      throw new Exception('dependencies can only be added via ' . implode(', ', $available));
-    }
-
+    ));
     $this->dependencies = array_merge($$this->dependencies, $dependencies);
+  }
+
+  public function getTasks() {
+    return $this->tasks;
+  }
+
+  public function setTasks(array $tasks) {
+    $this->_checkSetter('tasks', 'set', array(
+      self::INSTALLER_GET_INSTALL_TASKS,
+      self::INSTALLER_ALTER_INSTALL_TASKS,
+    ));
+    $this->tasks = $tasks;
+  }
+
+  public function addTasks(array $tasks) {
+    $this->_checkSetter('tasks', 'added', array(
+      self::INSTALLER_GET_INSTALL_TASKS,
+      self::INSTALLER_ALTER_INSTALL_TASKS,
+    ));
+    $this->tasks = array_merge($this->tasks, $tasks);
   }
 
   public function getForm() {
@@ -241,6 +248,7 @@ abstract class Installer implements SplSubject, InstallProfile {
   }
 
   public function setForm($form) {
+    $this->_checkSetter('form', 'set', array(self::INSTALLER_ALTER_INSTALL_CONFIGURE_FORM));
     $this->form = $form;
   }
 
@@ -249,7 +257,38 @@ abstract class Installer implements SplSubject, InstallProfile {
   }
 
   public function setFormState($form_state) {
+    $this->_checkSetter('form_state', 'set', array(
+      self::INSTALLER_ALTER_INSTALL_CONFIGURE_FORM,
+      self::INSTALLER_SUBMIT_INSTALL_CONFIGURE_FORM,
+    ));
     $this->form_state = $form_state;
   }
+
+   /**
+    * Validate setter functions. Throws exception if invalid.
+    *
+    * This is to prevent people from attempting to hook into the install process
+    * in the wrong way at the wrong state.
+    *
+    * @param string $nouns
+    *   Some property, e.g. tasks, dependencies.
+    *
+    * @param string $verbed
+    *   Some verbe, e.g. added, set.
+    *
+    * @param array $hooks
+    *   "hooks"/methods during which the property being changed is available to
+    *   be changed.
+    *
+    * @throws Exception
+    *   Notify user about how to correct their mistake when an exception is thrown.
+    */
+  private function _checkSetter(string $nouns, string $verbed, array $hooks) {
+    if (!in_array($this->getHook(), $hooks)) {
+      throw new Exception("{$nouns} can only be {$verbed} via " . implode(', ', $hooks));
+    }
+  }
+
+  private function _checkGetter(){}
 
 }
