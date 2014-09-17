@@ -191,14 +191,10 @@ abstract class Installer implements SplSubject, InstallProfile {
   }
 
   public function getInstallState() {
-    $available = array(
+    $this->_checkGetter('install_state', array(
       self::INSTALLER_GET_INSTALL_TASKS,
       self::INSTALLER_ALTER_INSTALL_TASKS
-    );
-    if (!in_array($this->getHook(), $available)) {
-      throw new Exception("install_state is only available via " . implode(', ', $available));
-    }
-
+    ));
     return $this->install_state;
   }
 
@@ -244,6 +240,10 @@ abstract class Installer implements SplSubject, InstallProfile {
   }
 
   public function getForm() {
+    $this->_checkGetter('form', array(
+      self::INSTALLER_ALTER_INSTALL_CONFIGURE_FORM,
+      self::INSTALLER_SUBMIT_INSTALL_CONFIGURE_FORM,
+    ));
     return $this->form;
   }
 
@@ -253,6 +253,10 @@ abstract class Installer implements SplSubject, InstallProfile {
   }
 
   public function getFormState() {
+    $this->_checkGetter('form', array(
+      self::INSTALLER_ALTER_INSTALL_CONFIGURE_FORM,
+      self::INSTALLER_SUBMIT_INSTALL_CONFIGURE_FORM,
+    ));
     return $this->form_state;
   }
 
@@ -289,6 +293,25 @@ abstract class Installer implements SplSubject, InstallProfile {
     }
   }
 
-  private function _checkGetter(){}
+    /**
+     * Validate getter functions. Throws an exception if invalid.
+     *
+     * Some properties, like install_state, are only available during certain
+     * "hook" invocations, to prevent confusion.
+     *
+     * @param string $property
+     *   Name of property being requested.
+     *
+     * @param array $hooks
+     *   Hook invocations in which the request is valid.
+     *
+     * @throws Exception
+     *   Notify user about how to correct their mistake when exception is thrown.
+     */
+    private function _checkGetter(string $property, array $hooks){
+    if (!in_array($this->getHook(), $hooks)) {
+      throw new Exception("{$property} only available via " . implode(', ', $hooks));
+    }
+  }
 
 }
