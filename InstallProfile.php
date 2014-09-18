@@ -4,6 +4,8 @@
  * Provides InstallProfile interface.
  */
 interface InstallProfile {
+  public function getSubprofiles();
+  public function alterSubprofiles();
   public function getDependencies();
   public function alterDependencies();
   public function getInstallTasks();

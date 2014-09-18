@@ -32,6 +32,8 @@ abstract class Installer implements SplSubject, InstallProfile {
    *
    * @see Subprofile::update
    */
+  const INSTALLER_GET_SUBPROFILES               = 'getSubprofiles';
+  const INSTALLER_ALTER_SUBPROFILES             = 'alterSubprofiles';
   const INSTALLER_GET_DEPENDENCIES              = 'getDependencies';
   const INSTALLER_ALTER_DEPENDENCIES            = 'alterDependencies';
   const INSTALLER_GET_INSTALL_TASKS             = 'getInstallTasks';
@@ -39,6 +41,10 @@ abstract class Installer implements SplSubject, InstallProfile {
   const INSTALLER_INSTALL                       = 'install';
   const INSTALLER_ALTER_INSTALL_CONFIGURE_FORM  = 'alterInstallConfigureForm';
   const INSTALLER_SUBMIT_INSTALL_CONFIGURE_FORM = 'submitInstallConfigureForm';
+
+  // Store a list of subprofiles as an array keyed by name, value pointing to
+  // file containing subprofile class.
+  private $subprofiles;
 
   // Store attached subprofiles ("observers") here.
   private $storage;
@@ -66,11 +72,33 @@ abstract class Installer implements SplSubject, InstallProfile {
   private $form;
   private $form_state;
 
+  // Instance of Installer.
+  private $instance;
+
   /**
    * Constructor is private. Instantiate via Installer::get.
    */
   private function __construct() {
-    $this->storage = new SplObjectStorage();  
+    // Use PHP SPL storage for managing attached subprofiles/observers.
+    $this->storage = new SplObjectStorage();
+    // Instantiate and attach subprofiles as observers, to be notified as
+    // different install events fire.
+    $this->attachSubprofiles();
+    $this->alterSubprofiles();
+    $this->getDependencies();
+    $this->alterDependencies();
+  }
+
+  /**
+   * Attach subprofiles/observers.
+   */
+  function attachSubprofiles() {
+    $this->setHook(self::INSTALLER_GET_SUBPROFILES);
+    foreach ($this->getSubprofiles() as $name => $properties) {
+      require_once $properties['path']; // @todo  Review/Revise.   CONTINUE HERE.
+      $this->attach(new $properties['class_name'])
+    }
+    $this->notify();
   }
 
   /**
@@ -106,6 +134,34 @@ abstract class Installer implements SplSubject, InstallProfile {
   /**
    * InstallProfile interface. =================================================
    */
+  public function getSubprofiles() {
+    if (empty($this->subprofiles)) {
+      // Find subprofiles. First check install profile's info file.
+      $subprofile_names = $this->getSubprofilesFromInfoFile();
+
+      // Next check subprofile settings from settings.php.
+      if ($settings_subprofiles = variable_get('subprofiles', FALSE)) {
+        $subprofile_names = array_merge($subprofile_names, $settings_subprofiles);
+      }
+
+      // Get path and class names.
+      $subprofiles = array();
+      foreach ($subprofile_names as $name) {
+
+        // CONTINUE HERE. Finish implementing this...
+
+        $subprofiles[$name]['name'] = $name;
+        $subprofiles[$name]['path'] = ''; // @todo
+        $subprofiles[$name]['class_name'] = ''; // @todo
+      }
+    }
+
+    return $this->subprofiles;
+  }
+
+  public function alterSubprofiles() {
+    // @todo
+  }
   public function getDependencies() {
     // Only retrieve dependencies from subprofiles once.
     if (empty($this->dependencies)) {
@@ -118,24 +174,34 @@ abstract class Installer implements SplSubject, InstallProfile {
   public function alterDependencies() {
     $this->setHook(INSTALLER_ALTER_DEPENDENCIES);
     $this->notify();
-    return $this->dependencies;
+    return $this->getDependencies();
   }
 
   public function getInstallTasks($install_state) {
-    // Only retreive install tasks from subprofiles once.
-    if (emplty($this->tasks)) {
+    // Only retreive install tasks from subprofiles once. If $tasks have been
+    // populated, this has already been executed.
+    if (empty($this->tasks)) {
       $this->setHook(INSTALLER_GET_INSTALL_TASKS);
       $this->setInstallState($install_state);
       $this->notify();
+
+      // CONTINUE HERE
+        // Add tasks for installing dependencies.
+
+        // Fix anti pattern?
+         // getInstallTasks
+         // getTasks [REMOVE]
+         // setTasks -> setInstallTasks
+         // $tasks -> installTasks   (?)
     }
-    return $this->tasks;
+    return $this->getTasks();
   }
 
   public function alterInstallTasks($tasks, $install_state) {
     $this->setHook(INSTALLER_ALTER_INSTALL_TASKS);
     $this->setInstallState($install_state);
     $this->notify();
-    return $this->tasks;
+    return $this->getTasks();
   }
 
   public function install() {
@@ -266,6 +332,29 @@ abstract class Installer implements SplSubject, InstallProfile {
       self::INSTALLER_SUBMIT_INSTALL_CONFIGURE_FORM,
     ));
     $this->form_state = $form_state;
+  }
+
+
+    /**
+     * @param string $path
+     * @return array
+     */
+    public static function getSubprofilesFromInfoFile($path = '') {
+    // If no path was passed in, assume this is being called from inside
+    // parent/base install profile. Check the profile's info file.
+    if (!$path) {
+      $profile_path = dirname(__FILE__);
+      $profile_name = basename($profile_path);
+      $path = "{$profile_path}/{$profile_name}.info";
+    }
+
+    $info = drupal_parse_info_file($path);
+    if (isset($info['subprofiles'])) {
+      return $info['subprofiles'];
+    }
+    else {
+      return array();
+    }
   }
 
    /**
