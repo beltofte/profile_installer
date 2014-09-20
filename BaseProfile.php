@@ -24,7 +24,6 @@
  * @see http://php.net/manual/en/class.splobjectstorage.php
  */
 class BaseProfile implements SplSubject, InstallProfile {
-
   /**
    * These constants represent different stages of the installation process
    * where Drupal enables install profiles to hook in. BaseProfile notifies
@@ -47,10 +46,7 @@ class BaseProfile implements SplSubject, InstallProfile {
   private $subprofile_storage;
   private $hook_invoked;
   private $drupal_install_state;
-
-  // Array of tasks to be returned by base profile via hook_install_tasks or
-  // modified via hook_install_tasks_alter.
-  private $tasks;
+  private $install_tasks;
 
   // Projects declared as dependencies by sub profiles.
   private $dependencies;
@@ -125,7 +121,7 @@ class BaseProfile implements SplSubject, InstallProfile {
   public function getInstallTasks($drupal_install_state) {
     // Only retreive install tasks from subprofiles once. If $tasks have been
     // populated, this has already been executed.
-    if (empty($this->tasks)) {
+    if (empty($this->install_tasks)) {
       $this->setHookInvoked(GET_INSTALL_TASKS);
       $this->setDrupalInstallState($drupal_install_state);
       $this->notify();
@@ -133,10 +129,10 @@ class BaseProfile implements SplSubject, InstallProfile {
       // CONTINUE HERE
         // Add tasks for installing dependencies.
     }
-    return $this->tasks();
+    return $this->install_tasks;
   }
 
-  public function alterInstallTasks($tasks, $drupal_install_state) {
+  public function alterInstallTasks($install_tasks, $drupal_install_state) {
     $this->setHookInvoked(ALTER_INSTALL_TASKS);
     $this->setDrupalInstallState($drupal_install_state);
     $this->notify();
@@ -224,20 +220,20 @@ class BaseProfile implements SplSubject, InstallProfile {
     $this->dependencies = array_merge($$this->dependencies, $dependencies);
   }
 
-  public function setInstallTasks(array $tasks) {
-    $this->_checkSetter('tasks', 'set', array(
+  public function setInstallTasks(array $install_tasks) {
+    $this->_checkSetter('install_tasks', 'set', array(
       self::GET_INSTALL_TASKS,
       self::ALTER_INSTALL_TASKS,
     ));
-    $this->tasks = $tasks;
+    $this->install_tasks = $install_tasks;
   }
 
-  public function addInstallTasks(array $tasks) {
-    $this->_checkSetter('tasks', 'added', array(
+  public function addInstallTasks(array $install_tasks) {
+    $this->_checkSetter('install_tasks', 'added', array(
       self::GET_INSTALL_TASKS,
       self::ALTER_INSTALL_TASKS,
     ));
-    $this->tasks = array_merge($this->tasks, $tasks);
+    $this->install_tasks = array_merge($this->install_tasks, $install_tasks);
   }
 
   public function getForm() {
