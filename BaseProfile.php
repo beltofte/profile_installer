@@ -27,8 +27,9 @@ class BaseProfile implements SplSubject, InstallProfile {
 
   /**
    * These constants represent different stages of the installation process
-   * where install profiles hook in. BaseProfile enables SubProfiles to extend by
-   * by hooking into the same events.
+   * where Drupal enables install profiles to hook in. BaseProfile notifies
+   * SubProfiles about these events ane enables them to hook in here too, along
+   * with the base profile.
    *
    * Constants map to sensible method names to make things easy for SubProfile
    * implementers.
@@ -43,12 +44,8 @@ class BaseProfile implements SplSubject, InstallProfile {
   const ALTER_INSTALL_CONFIGURE_FORM  = 'alterInstallConfigureForm';
   const SUBMIT_INSTALL_CONFIGURE_FORM = 'submitInstallConfigureForm';
 
-  // Store attached subprofiles (observers) in SplObjectStorage here.
-  private $storage;
-
-  // Keep track of which "hook" is being "invoked", that is, which install method
-  // has been called by the base profile.
-  private $hook;
+  private $subprofile_storage;
+  private $hook_invoked;
 
   // Drupal install state passed by reference during hook_install_tasks, and as
   // context via hook_install_tasks_alter.
@@ -77,7 +74,7 @@ class BaseProfile implements SplSubject, InstallProfile {
    */
   private function __construct() {
     // Use PHP SPL storage for managing attached subprofiles/observers.
-    $this->storage = new SplObjectStorage();
+    $this->subprofile_storage= new SplObjectStorage();
   }
 
   /**
@@ -97,15 +94,15 @@ class BaseProfile implements SplSubject, InstallProfile {
    * SplObserver interface. ====================================================
    */
   public function attach( SplObserver $observer ) {
-    $this->storage->attach( $observer );
+    $this->subprofile_storage->attach( $observer );
   }
 
   public function detach( SplObserver $observer ) {
-    $this->storage->detach( $observer );
+    $this->subprofile_storage->detach( $observer );
   }
 
   public function notify() {
-    foreach ( $this->storage as $obs ) {
+    foreach ( $this->subprofile_storage as $obs ) {
       $obs->update( $this );
     }
   }
@@ -116,14 +113,14 @@ class BaseProfile implements SplSubject, InstallProfile {
   public function getDependencies() {
     // Only retrieve dependencies from subprofiles once.
     if (empty($this->dependencies)) {
-      $this->setHook(GET_DEPENDENCIES);
+      $this->setHookInvoked(GET_DEPENDENCIES);
       $this->notify();
     }
     return $this->dependencies;
   }
 
   public function alterDependencies() {
-    $this->setHook(ALTER_DEPENDENCIES);
+    $this->setHookInvoked(ALTER_DEPENDENCIES);
     $this->notify();
     return $this->getDependencies();
   }
@@ -132,7 +129,7 @@ class BaseProfile implements SplSubject, InstallProfile {
     // Only retreive install tasks from subprofiles once. If $tasks have been
     // populated, this has already been executed.
     if (empty($this->tasks)) {
-      $this->setHook(GET_INSTALL_TASKS);
+      $this->setHookInvoked(GET_INSTALL_TASKS);
       $this->setInstallState($install_state);
       $this->notify();
 
@@ -143,52 +140,52 @@ class BaseProfile implements SplSubject, InstallProfile {
   }
 
   public function alterInstallTasks($tasks, $install_state) {
-    $this->setHook(ALTER_INSTALL_TASKS);
+    $this->setHookInvoked(ALTER_INSTALL_TASKS);
     $this->setInstallState($install_state);
     $this->notify();
     return $this->getInstallTasks();
   }
 
   public function install() {
-    $this->setHook(INSTALL);
+    $this->setHookInvoked(INSTALL);
     $this->notify();
   }
 
   public function alterInstallConfigureForm($form, $form_state) {
     $this->form = $form;
     $this->form_state = $form_state;
-    $this->setHook(ALTER_INSTALL_CONFIGURE_FORM);
+    $this->setHookInvoked(ALTER_INSTALL_CONFIGURE_FORM);
     $this->notify();
   }
 
   public function submitInstallConfigureForm($form, $form_state) {
     $this->form = $form;
     $this->form_state = $form_state;
-    $this->setHook(SUBMIT_INSTALL_CONFIGURE_FORM);
+    $this->setHookInvoked(SUBMIT_INSTALL_CONFIGURE_FORM);
     $this->notify();
   }
 
   /**
    * Getters and setters. ======================================================
    */
-  public function getHook() {
-    return $this->hook;
+  public function getHookInvoked() {
+    return $this->hook_invoked;
   }
 
-  public function setHook( $hook ) {
-    if (!$this->isValidHook($hook)) {
-      throw new Exception("Cannot set an invalid state: {$hook}");
+  public function setHookInvoked( $hook_invoked ) {
+    if (!$this->isValidHook($hook_invoked)) {
+      throw new Exception("Cannot set an invalid state: {$hook_invoked}");
     }
-    $this->hook= $hook;
+    $this->hook_invoked= $hook_invoked;
   }
 
   /**
-   * Validate $hook is a valid hook name.
+   * Validate $hook_invoked is a valid hook name.
    *
-   * @param $hook
+   * @param $hook_invoked
    * @return bool
    */
-  function isValidHook( $hook ) {
+  function isValidHook( $hook_invoked ) {
     $valid = array(
       self::GET_DEPENDENCIES,
       self::ALTER_DEPENDENCIES,
@@ -198,7 +195,7 @@ class BaseProfile implements SplSubject, InstallProfile {
       self::ALTER_INSTALL_CONFIGURE_FORM,
       self::SUBMIT_INSTALL_CONFIGURE_FORM,
     );
-    return in_array($hook, $valid);
+    return in_array($hook_invoked, $valid);
   }
 
   public function getInstallState() {
@@ -295,7 +292,7 @@ class BaseProfile implements SplSubject, InstallProfile {
     *   Notify user about how to correct their mistake when an exception is thrown.
     */
   private function _checkSetter(string $nouns, string $verbed, array $hooks) {
-    if (!in_array($this->getHook(), $hooks)) {
+    if (!in_array($this->getHookInvoked(), $hooks)) {
       throw new Exception("{$nouns} can only be {$verbed} via " . implode(', ', $hooks));
     }
   }
@@ -316,7 +313,7 @@ class BaseProfile implements SplSubject, InstallProfile {
      *   Notify user about how to correct their mistake when exception is thrown.
      */
     private function _checkGetter(string $property, array $hooks){
-    if (!in_array($this->getHook(), $hooks)) {
+    if (!in_array($this->getHookInvoked(), $hooks)) {
       throw new Exception("{$property} only available via " . implode(', ', $hooks));
     }
   }

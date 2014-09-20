@@ -36,7 +36,7 @@ abstract class SubProfile implements SplObserver, InstallProfile {
       return;
     }
     // If the subprofile implemented the "hook", invoke it.
-    $hook = $installer->getHook();
+    $hook = $installer->getHookInvoked();
     if (method_exists($this, $hook)) {
       $result = $this->$hook();
     }
