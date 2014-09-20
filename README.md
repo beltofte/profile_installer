@@ -1,5 +1,7 @@
-Install Profile Observer
-========================
+Base Profile
+============
+
+Provides BaseProfile class to manage installation for Drupal install profiles. Install profiles using BaseProfile to manage installation can be extended by sub profiles the way themes are extended and overridden by subthemes and the way Drupal can be extended and overridden by modules.
 
 Installation and setup (for base profiles)
 ------------------------------------------
@@ -8,19 +10,21 @@ Make your install profile a base profile that supports subprofiles like this:
 
 1. Download this project. Place it in the profiles directory (as if it were an install profile).
 
-2. Extend the Installer class with a class named MyProfileInstaller (see ExampleInstaller.php).
+2. Extend the BaseProfile class with a class named MyProfileBaseProfile (see ExampleBaseProfile.php).
 
-3. Use MyProfileInstaller to manage installation and other install profile functionality (see example.profile and example.install).
+3. Use MyProfileBaseProfile to manage installation and other install profile
+   functionality (see example.profile and example.install or example2.profile and
+   example2.install).
 
 
 Create a subprofile
 -------------------
 
-Subprofiles include two files:
+SubProfiles include two files:
 
   mysubprofile.info: Declares subprofile's dependencies (just like a standard info file for any other Drupal install profile).
 
-  MySubprofile.php: Includes MySubprofile class. MySubprofile extends abstract Subprofile class (see SampleSubprofile.php), giving it the ability to hook into Drupal's installation process at all the same places where a standard install profile hooks in to set up an application..
+  MySubProfile.php: Includes MySubProfile class. MySubProfile extends abstract SubProfile class (see SampleSubProfile.php), giving it the ability to hook into Drupal's installation process at all the same places where a standard install profile hooks in to set up an application..
 
 
 Using subprofiles
@@ -60,9 +64,9 @@ Including subprofiles in a code base via Drush Make
 
   Note: This is not supported by drupal.org. The only way to include subprofiles in an install profile on drupal.org is to include both InstallProfileObserver and subprofiles inside the install profile's project repo.
 
-    ; Include InstallProfileObserver. It's not really an install profile. But
+    ; Include baseprofile. It's not really an install profile. But
     ; Drush Make will put it in the right place if we pretend it is.
-    projects[InstallProfileObserver][type] = profile
+    projects[baseprofile][type] = profile
 
     ; Included subprofiles.
     projects[example_subprofile_1][type] = profile

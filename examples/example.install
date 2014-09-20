@@ -1,0 +1,42 @@
+<?php
+/**
+ * @file example.install
+ * Example install profile's install file.
+ */
+require_once DRUPAL_ROOT . '/profiles/baseprofile/InstallProfile.php';
+require_once DRUPAL_ROOT . '/profiles/baseprofile/InstallUtility.php';
+require_once DRUPAL_ROOT . '/profiles/baseprofile/BaseProfile.php';
+require_once 'ExampleBaseProfile.php';
+
+/**
+ * Implements hook_install().
+ */
+function example_install() {
+  $installer = BaseProfile::get();
+  $installer->install();
+}
+
+/**
+ * Implements hook_install_tasks().
+ */
+function example_install_tasks(&$install_state) {
+  $installUtility = new InstallUtility(dirname(__FILE__));
+  $installer = BaseProfile::get();
+
+  $subprofiles = $installUtility->getSubProfiles();
+  foreach ($subprofiles as $name => $properties) {
+    $subprofileClass = $properties['class_name'];
+    require_once "{$properties['path']}/{$subprofileClass}.php";
+    $installer->attach( new $subprofileClass() );
+  }
+
+  return $installer->getInstallTasks($install_state);
+}
+
+/**
+ * Implements hook_install_tasks_alter().
+ */
+function example_install_tasks_alter(&$tasks, $install_state) {
+  $installer = BaseProfile::get();
+  $tasks = $installer->alterInstallTasks($tasks, $install_state);
+}
