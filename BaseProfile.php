@@ -47,20 +47,14 @@ class BaseProfile implements SplSubject, InstallProfile {
   private $hook_invoked;
   private $drupal_install_state;
   private $install_tasks;
+  private $install_configure_form;
+  private $install_configure_form_state;
+  private $instance;
 
-  // Projects declared as dependencies by sub profiles.
   private $dependencies;
-
   // Dependencies successfully installed.
   private $installed;
 
-  // Variables available via hook_form_FORM_ID_alter and submit handler for
-  // install_configure_form.
-  private $form;
-  private $form_state;
-
-  // Instance of BaseProfile.
-  private $instance;
 
   /**
    * Constructor is private. Instantiate via BaseProfile::get.
@@ -144,16 +138,16 @@ class BaseProfile implements SplSubject, InstallProfile {
     $this->notify();
   }
 
-  public function alterInstallConfigureForm($form, $form_state) {
-    $this->form = $form;
-    $this->form_state = $form_state;
+  public function alterInstallConfigureForm($install_configure_form, $install_configure_form_state) {
+    $this->install_configure_form = $install_configure_form;
+    $this->install_configure_form_state = $install_configure_form_state;
     $this->setHookInvoked(ALTER_INSTALL_CONFIGURE_FORM);
     $this->notify();
   }
 
-  public function submitInstallConfigureForm($form, $form_state) {
-    $this->form = $form;
-    $this->form_state = $form_state;
+  public function submitInstallConfigureForm($install_configure_form, $install_configure_form_state) {
+    $this->install_configure_form = $install_configure_form;
+    $this->install_configure_form_state = $install_configure_form_state;
     $this->setHookInvoked(SUBMIT_INSTALL_CONFIGURE_FORM);
     $this->notify();
   }
@@ -236,33 +230,33 @@ class BaseProfile implements SplSubject, InstallProfile {
     $this->install_tasks = array_merge($this->install_tasks, $install_tasks);
   }
 
-  public function getForm() {
-    $this->_checkGetter('form', array(
+  public function getInstallConfigureForm() {
+    $this->_checkGetter('install_configure_form', array(
       self::ALTER_INSTALL_CONFIGURE_FORM,
       self::SUBMIT_INSTALL_CONFIGURE_FORM,
     ));
-    return $this->form;
+    return $this->install_configure_form;
   }
 
-  public function setForm($form) {
-    $this->_checkSetter('form', 'set', array(self::ALTER_INSTALL_CONFIGURE_FORM));
-    $this->form = $form;
+  public function setInstallConfigureForm($install_configure_form) {
+    $this->_checkSetter('install_configure_form', 'set', array(self::ALTER_INSTALL_CONFIGURE_FORM));
+    $this->install_configure_form = $install_configure_form;
   }
 
-  public function getFormState() {
-    $this->_checkGetter('form', array(
+  public function getInstallConfigureFormState() {
+    $this->_checkGetter('install_configure_form', array(
       self::ALTER_INSTALL_CONFIGURE_FORM,
       self::SUBMIT_INSTALL_CONFIGURE_FORM,
     ));
     return $this->form_state;
   }
 
-  public function setFormState($form_state) {
-    $this->_checkSetter('form_state', 'set', array(
+  public function setInstallConfigureFormState($install_configure_form_state) {
+    $this->_checkSetter('install_configure_form_state', 'set', array(
       self::ALTER_INSTALL_CONFIGURE_FORM,
       self::SUBMIT_INSTALL_CONFIGURE_FORM,
     ));
-    $this->form_state = $form_state;
+    $this->install_configure_form_state = $install_configure_form_state;
   }
 
    /**
