@@ -28,7 +28,7 @@ class BaseProfile implements SplSubject, InstallProfile {
   /**
    * These constants represent different stages of the installation process
    * where Drupal enables install profiles to hook in. BaseProfile notifies
-   * SubProfiles about these events ane enables them to hook in here too, along
+   * SubProfiles about these events and enables them to hook in here too, along
    * with the base profile.
    *
    * Constants map to sensible method names to make things easy for SubProfile
@@ -46,10 +46,7 @@ class BaseProfile implements SplSubject, InstallProfile {
 
   private $subprofile_storage;
   private $hook_invoked;
-
-  // Drupal install state passed by reference during hook_install_tasks, and as
-  // context via hook_install_tasks_alter.
-  private $install_state;
+  private $drupal_install_state;
 
   // Array of tasks to be returned by base profile via hook_install_tasks or
   // modified via hook_install_tasks_alter.
@@ -125,12 +122,12 @@ class BaseProfile implements SplSubject, InstallProfile {
     return $this->getDependencies();
   }
 
-  public function getInstallTasks($install_state) {
+  public function getInstallTasks($drupal_install_state) {
     // Only retreive install tasks from subprofiles once. If $tasks have been
     // populated, this has already been executed.
     if (empty($this->tasks)) {
       $this->setHookInvoked(GET_INSTALL_TASKS);
-      $this->setInstallState($install_state);
+      $this->setDrupalInstallState($drupal_install_state);
       $this->notify();
 
       // CONTINUE HERE
@@ -139,9 +136,9 @@ class BaseProfile implements SplSubject, InstallProfile {
     return $this->tasks();
   }
 
-  public function alterInstallTasks($tasks, $install_state) {
+  public function alterInstallTasks($tasks, $drupal_install_state) {
     $this->setHookInvoked(ALTER_INSTALL_TASKS);
-    $this->setInstallState($install_state);
+    $this->setDrupalInstallState($drupal_install_state);
     $this->notify();
     return $this->getInstallTasks();
   }
@@ -198,17 +195,17 @@ class BaseProfile implements SplSubject, InstallProfile {
     return in_array($hook_invoked, $valid);
   }
 
-  public function getInstallState() {
-    $this->_checkGetter('install_state', array(
+  public function getDrupalInstallState() {
+    $this->_checkGetter('drupal_install_state', array(
       self::GET_INSTALL_TASKS,
       self::ALTER_INSTALL_TASKS
     ));
-    return $this->install_state;
+    return $this->drupal_install_state;
   }
 
-  public function setInstallState($install_state) {
-    $this->_checkSetter('install_state', 'set', array(self::GET_INSTALL_TASKS));
-    $this->install_state = $install_state;
+  public function setDrupalInstallState($drupal_install_state) {
+    $this->_checkSetter('drupal_install_state', 'set', array(self::GET_INSTALL_TASKS));
+    $this->drupal_install_state = $drupal_install_state;
   }
 
   public function setDependencies(array $dependencies) {
