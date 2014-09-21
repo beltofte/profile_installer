@@ -1,5 +1,5 @@
-Base Profile
-============
+Profile Installer
+=================
 
 Provides BaseProfile class to manage installation for Drupal install profiles. Install profiles using BaseProfile to manage installation can be extended by sub profiles the way themes are extended and overridden by subthemes and the way Drupal can be extended and overridden by modules.
 

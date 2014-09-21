@@ -43,18 +43,18 @@ class BaseProfile implements SplSubject, InstallProfile {
   const ALTER_INSTALL_CONFIGURE_FORM  = 'alterInstallConfigureForm';
   const SUBMIT_INSTALL_CONFIGURE_FORM = 'submitInstallConfigureForm';
 
-  private $subprofile_storage;
-  private $hook_invoked;
+  // Stuff passed to base profile via drupal hooks.
   private $drupal_install_state;
   private $install_tasks;
   private $install_configure_form;
   private $install_configure_form_state;
+
+  // BaseProfile internals.
+  private $subprofile_storage;
+  private $hook_invoked;
   private $instance;
-
-  private $dependencies;
-  // Dependencies successfully installed.
-  private $installed;
-
+  private $dependencies_not_installed;  // CONTINUE HERE
+  private $dependencies_installed;
 
   /**
    * Constructor is private. Instantiate via BaseProfile::get.

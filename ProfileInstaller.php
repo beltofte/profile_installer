@@ -1,12 +1,12 @@
 <?php
 /**
- * @file InstallUtility.php
+ * @file ProfileInstaller.php
  * Provides utilities for detecting subprofiles and wrappers for drupal functions.
  *
  * Anything requiring a Drupal bootstrap, knowledge of Drupal directory structure,
  * or logic determining where things like subprofiles live in a code base is encapsulated here.
  */
-class InstallUtility {
+class ProfileInstaller {
   // Path to install profile.
   private $path;
   // Path to info file.
