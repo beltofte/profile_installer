@@ -25,7 +25,7 @@ abstract class SubProfile implements SplObserver, InstallProfile {
   }
 
   /**
-   * SplSubject interface ======================================================
+   * SplSubject interface. ======================================================
    *
    * @param SplSubject $subject
    */
@@ -43,5 +43,31 @@ abstract class SubProfile implements SplObserver, InstallProfile {
 
     return $result;
   }
+
+ /**
+  * InstallProfile interface. ==================================================
+  */
+  public function getDependencies() {
+    $dependencies = $this->getDependenciesFromInfoFile();
+    $this->installer->addDependencies($dependencies);
+  }
+
+  public function getDependenciesFromInfoFile() {
+
+    // @todo get local info file.
+    // $info_file = ... ;
+
+    $info = drupal_parse_info_file($info_file);
+    return $info['dependencies'];
+  }
+
+  /*
+  public function alterDependencies();
+  public function getInstallTasks();
+  public function alterInstallTasks();
+  public function install();
+  public function alterInstallConfigureForm();
+  public function submitInstallConfigureForm();
+  // */
 
 }

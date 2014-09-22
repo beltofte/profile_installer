@@ -5,47 +5,38 @@
  */
 require_once DRUPAL_ROOT . '/profiles/profileinstaller/InstallProfile.php';
 require_once DRUPAL_ROOT . '/profiles/profileinstaller/ProfileInstaller.php';
-require_once DRUPAL_ROOT . '/profiles/profileinstaller/BaseProfile.php';
-
-/**
- * Implements hook_install().
- */
-function example_install() {
-    /*
-  $installer = BaseProfile::get();
-  $installer->install();
-    // */
-  $installer = ProfileInstaller::get();
-  $installer->install();
-}
+require_once DRUPAL_ROOT . '/profiles/profileinstaller/ProfileInstaller.php';
 
 /**
  * Implements hook_install_tasks().
  */
-function example_install_tasks(&$install_state) {
-  /*
-  $installUtility = new InstallUtility(dirname(__FILE__));
-  $installer = BaseProfile::get();
+function example_install_tasks() {
 
-  $subprofiles = $installUtility->getSubProfiles();
-  foreach ($subprofiles as $name => $properties) {
-    $subprofileClass = $properties['class_name'];
-    require_once "{$properties['path']}/{$subprofileClass}.php";
-    $installer->attach( new $subprofileClass() );
-  }
-  // */
-  $installer = ProfileInstaller::get();
-  return $installer->getInstallTasks($install_state);
+  // Custom base profile stuff goes here...
+
+  $installer = ProfileInstaller::getInstallerForProfile('example');
+  return $installer->getInstallTasks();
 }
 
 /**
  * Implements hook_install_tasks_alter().
  */
 function example_install_tasks_alter(&$tasks, $install_state) {
-  /*
-  $installer = BaseProfile::get();
-  $tasks = $installer->alterInstallTasks($tasks, $install_state);
-  // */
-  $installer = ProfileInstaller::get();
+
+  // Custom base profile stuff goes here...
+
+  $installer = ProfileInstaller::getInstallerForProfile('example');
   $tasks = $installer->alterInstallTasks($tasks, $install_state);
 }
+
+/**
+ * Implements hook_install().
+ */
+function example_install() {
+
+    // Custom base profile stuff goes here...
+
+    $installer = ProfileInstaller::getInstallerForProfile('example');
+    $installer->install();
+}
+

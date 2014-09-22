@@ -1,0 +1,3 @@
+<?php
+$installer = ProfileInstaller::getInstallerForProfile('example2');
+eval($installer->getDrupalHookImplementationsForFile(__FILE__));
