@@ -8,11 +8,11 @@
  * Provides BaseProfile class to manage installation for Drupal install profiles.
  *
  * Install profiles using BaseProfile to manage installation are "base profiles".
- * Base profiles can be extended by sub profiles.
+ * Base profiles can be extended by subprofiles.
  *
  * Implements Observer design pattern using the Standard PHP Library's (SPL)
  * SplSubject interface and SplObjectStorage class. BaseProfile is the subject.
- * SubProfiles are observers.
+ * Subprofiles are observers.
  *
  * Implements Singleton design pattern. Enables a single instance of BaseProfile to
  * control the installation process. A Drupal install profile makes itself subprofile-able by
@@ -27,13 +27,13 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   /**
    * These constants represent different stages of the installation process
    * where Drupal enables install profiles to hook in. BaseProfile notifies
-   * SubProfiles about these events and enables them to hook in here too, along
+   * Subprofiles about these events and enables them to hook in here too, along
    * with the base profile.
    *
-   * Constants map to sensible method names to make things easy for SubProfile
+   * Constants map to sensible method names to make things easy for Subprofile
    * implementers.
    *
-   * @see SubProfile::update
+   * @see Subprofile::update
    */
   const GET_DEPENDENCIES              = 'getDependencies';
   const ALTER_DEPENDENCIES            = 'alterDependencies';
@@ -53,6 +53,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   private $baseprofile_name;
   private $baseprofile_path;
   private $subprofile_storage;
+  private $subprofiles_details;
 
   private $dependencies;
   private $hook_invoked;
@@ -65,65 +66,26 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     $this->setBaseProfileName($baseprofile_name);
     $this->setBaseProfilePath();
     $this->subprofile_storage = new SplObjectStorage();
-    $this->detectAndAttachSubprofiles();
+    $this->initializeAndAttachSubprofiles();
   }
 
-  private function detectAndAttachSubprofiles() {
-    $subprofile_names1 = $this->getSubProfileNamesFromInfoFile();
-    $subprofile_names2 = $this->getSubProfileNamesFromSiteSettings();
-    $subprofile_names = array_merge($subprofile_names1, $subprofile_names2);
-
-    $subprofile_info = array();
-    foreach ($subprofile_names as $subprofile_name) {
-      $subprofile_path = $this->getPathToSubProfile($subprofile_name, TRUE);
-      $subprofiles_details[$subprofile_name] = $this->getSubProfileDetails($subprofile_path);
-    }
-
-    foreach ($subprofiles_details as $subprofile_name => $subprofile_details) {
-      // Initialize and attach subprofiles so they will receive notifications of
-      // install events ("hooks").
-      include_once $subprofile_details['subprofile_class_file'];
-      $subprofile_class = $subprofile_details['subprofile_class_name'];
-      $this->attach( new $subprofile_class() );
-    }
-
-    return $subprofiles;
-  }
-
-  public static function getSubProfileDetails($subprofile_path) {
-    $project_name = basename($subprofile_path);
-
-    // Find class name by looking for MySubProfile.php and stripping off the extension.
-    foreach(file_scan_directory($subprofile_path, '/.*/') as $file) {
-      if (self::isSubProfileClassFile($file->uri)) {
-        $subprofile_class_name = self::removeFileExtensionFromFile('.php', $file->name);
-        $subprofile_class_file = $file->uri;
-      }
-    }
-    if (!isset($subprofile_class_name) || !isset($subprofile_class_file)) {
-      throw new Exception("Invalid subprofile, no valid class file found here: {$subprofile_path}");
-    }
-
-    $subprofile_info_file = $subprofile_path . "/{$project_name}.info";
-    if (!file_exists($subprofile_info_file)) {
-      throw new Exception("Invalid subprofile, no valid info file found here: {$subprofile_info_file}");
-    }
-
-    $subprofile_details = array(
-      'project_name' => $project_name,
-      'project_path' => $subprofile_path,
-      'subprofile_class_name' => $subprofile_class_name,
-      'subprofile_class_file' => $subprofile_class_file,
-      'subprofile_info_file' => $subprofile_info_file,
+  private function initializeAndAttachSubprofiles() {
+    $subprofile_names = array_merge(
+      $this->getSubprofileNamesFromInfoFile(),
+      $this->getSubprofileNamesFromSiteSettings(),
     );
 
-    return $subprofile_details;
+    foreach ($subprofile_names as $subprofile_name) {
+      include_once $this->getSubprofileClassFile($subprofile_name);
+      $subprofile_class = $this->getSubprofileClassName($subprofile_name);
+      $this->attach( new $subprofile_class($subprofile_name, $this) );
+    }
   }
 
   /**
    * @return bool
    */
-  public static function isSubProfileClassFile($uri) {
+  public static function isSubprofileClassFile($uri) {
     // If extension isn't .php, it's definitely not a valid class file.
     if (substr($uri) != '.php') {
       return FALSE;
@@ -144,7 +106,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     if ($project_name == $class_name) {
       $match = TRUE;
     }
-    // Names like myproject and MyProjectSubProfile are valid.
+    // Names like myproject and MyProjectSubprofile are valid.
     if ($project_name == substr($class_name, 0, -10)) {
       $match = TRUE;
     }
@@ -157,31 +119,8 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     return substr($filename, 0, $length * -1);
   }
 
-  /**
-   * Detect subprofile path and return it.
-   */
-  public function getPathToSubProfile($subprofile_name, $raise_exception = FALSE) {
-    $included_subprofile_path = DRUPAL_ROOT . "/profiles/{$this->baseprofile_name}/subprofiles/{$subprofile_name}";
-    $add_on_subprofile_path = DRUPAL_ROOT . "/profiles/subprofiles/{$subprofile_name}";
 
-    if (is_dir($included_subprofile_path)) {
-      $path = $included_subprofile_path;
-    }
-    else if (is_dir($add_on_subprofile_path)) {
-      $path = $add_on_subprofile_path;
-    }
-    else {
-      $path = NULL;
-    }
-
-    if (!$path && $raise_exception) {
-      throw new Exception("Sub profile not found: {$subprofile_name}");
-    }
-
-    return $path;
-  }
-
-  private function loadSubProfileNamesFromInfoFile() {
+  private function loadSubprofileNamesFromInfoFile() {
     // @todo
     // $info_file = ...
 
@@ -190,12 +129,12 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     return $result;
   }
 
-  private function getSubProfileNamesFromSiteSettings() {
+  private function getSubprofileNamesFromSiteSettings() {
       // @todo Verify variable_get works immediately after bootstrap. Otherwise use $conf or prevent initializing until later (like getDependencies).
     return variable_get('subprofiles', array());
   }
 
-  private function getSubProfileInfo($subprofile_names) {
+  private function getSubprofileInfo($subprofile_names) {
       // @todo
   }
 
@@ -277,7 +216,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
       // CONTINUE HERE
       // Add tasks for installing dependencies.
       /*
-      $subprofiles = $installUtility->getSubProfiles();
+      $subprofiles = $installUtility->getSubprofiles();
       foreach ($subprofiles as $name => $properties) {
         $subprofileClass = $properties['class_name'];
         require_once "{$properties['path']}/{$subprofileClass}.php";
@@ -456,6 +395,119 @@ class ProfileInstaller implements SplSubject, InstallProfile {
       throw new Exception("Cannot set baseprofile_path if baseprofile_name is empty.");
     }
     $this->baseprofile_path = $this->getPathToBaseProfile($this->baseprofile_name);
+  }
+
+  public function getSubprofileDetails($subprofile_name) {
+    if (empty($this->subprofiles_details[$subprofile_name])) {
+      $this->setSubprofileDetails($subprofile_name);
+    }
+    return $this->subprofiles_details[$subprofile_name];
+  }
+
+  public function setSubprofileDetails($subprofile_name) {
+    $class_info = $this->getSubprofileClassInfo($subprofile_name);
+
+    $this->setSubprofilePath($subprofile_name);
+    $this->setSubprofileName($subprofile_name);
+    $this->setSubprofileInfoFile($subprofile_name);
+    $this->setSubprofileClassName($subprofile_name, $class_info['class_name']);
+    $this->setSubprofileClassFile($subprofile_name, $class_info['class_file']);
+  }
+
+  public function getSubprofilePath($subprofile_name, $raise_exception = FALSE) {
+    if (empty($this->subprofiles_details[$subprofile_name]['subprofile_path'])) {
+      $subprofile_path = $this->_getSubprofilePath($subprofile_name, $raise_exception);
+      $this->setSubprofilePath($subprofile_path, $subprofile_name)
+    }
+    return $this->subprofiles_details[$subprofile_name]['subprofile_path'];
+  }
+
+  private function _getSubprofilePath($subprofile_name, $raise_exception) {
+    $included_subprofile_path = DRUPAL_ROOT . "/profiles/{$this->baseprofile_name}/subprofiles/{$subprofile_name}";
+    $add_on_subprofile_path = DRUPAL_ROOT . "/profiles/subprofiles/{$subprofile_name}";
+
+    if (is_dir($included_subprofile_path)) {
+      $path = $included_subprofile_path;
+    }
+    else if (is_dir($add_on_subprofile_path)) {
+      $path = $add_on_subprofile_path;
+    }
+    else {
+      $path = NULL;
+    }
+
+    if (!$path && $raise_exception) {
+      throw new Exception("Sub profile not found: {$subprofile_name}");
+    }
+
+    return $path;
+  }
+
+  public function setSubprofilePath($subprofile_name) {
+    $subprofile_path = $this->getSubprofilePath($subprofile_name, TRUE);
+    $this->subprofiles_details[$subprofile_name]['subprofile_path'] = $subprofile_path;
+  }
+
+  public function setSubprofileName($subprofile_name) {
+    $this->subprofiles_details[$subprofile_name]['subprofile_name'] = $subprofile_name;
+  }
+
+  public function getSubprofileClassInfo($subprofile_name, $raise_exception = FALSE) {
+    if (!empty($this->subprofiles_details[$subprofile_name]['class_file'])) {
+      $info['class_name'] = $this->getSubprofileClassName($subprofile_name);
+      $info['class_file'] = $this->getSubprofileClassFile($subprofile_name);
+    }
+    else {
+      $info = array();
+      $subprofile_path = $this->getSubprofilePath($subprofile_name, TRUE);
+
+      foreach(file_scan_directory($subprofile_path, '/.*/') as $file) {
+        if (self::isSubprofileClassFile($file->uri)) {
+          $info['class_name'] = self::removeFileExtensionFromFile('.php', $file->name);
+          $info['class_file'] = $file->uri;
+        }
+      }
+
+      if (empty($info['class_file']) && $raise_exception) {
+        throw new Exception("Invalid subprofile, no valid class file found here: {$subprofile_path}");
+      }
+    }
+
+    return $info;
+  }
+
+  public function getSubprofileClassFile($subprofile_name) {
+    return $this->subprofiles_details[$subprofile_name]['class_file'];
+  }
+
+  public function setSubprofileClassFile($subprofile_name, $file) {
+    if (!file_exists($file)) {
+      throw new Exception("File does not exist: {$file}");
+    }
+    $this->subprofiles_details[$subprofile_name]['class_file'] = $file;
+  }
+
+  public function getSubprofileClassName($subprofile_name) {
+    return $this->subprofiles_details[$subprofile_name]['class_name'];
+  }
+
+  public function setSubprofileClassName($subprofile_name, $class_name) {
+    $this->subprofiles_details[$subprofile_name]['class_name'] = $class_name;
+  }
+
+  public function getSubprofileInfoFile($subprofile_name) {
+    return $this->subprofiles_details[$subprofile_name]['info_file'];
+  }
+
+  public function setSubprofileInfoFile($subprofile_name) {
+    $subprofile_path = $this->getSubprofilePath($subprofile_name, TRUE);
+    $subprofile_info_file = "{$subprofile_path}/{$subprofile_name}.info";
+
+    if (!file_exists($subprofile_info_file)) {
+      throw new Exception("Invalid subprofile, no valid info file found here: {$subprofile_info_file}");
+    }
+
+    $this->subprofiles_details[$subprofile_name]['info_file'] = $subprofile_info_file;
   }
 
    /**
