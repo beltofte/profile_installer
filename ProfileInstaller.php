@@ -134,8 +134,11 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     return variable_get('subprofiles', array());
   }
 
-  private function getSubprofileInfo($subprofile_names) {
-      // @todo
+  private function getSubprofileNamesFromInfoFile() {
+    $info_file = $this->getBaseProfilePath() . '/' . $this->getBaseProfileName() . '.info';
+    $info = drupal_parse_info_file($info_file);
+    $subprofile_names = (isset($info['subprofiles']) ? $info['subprofiles'] : array();
+    return $subprofile_names;
   }
 
   /**
