@@ -1,30 +1,28 @@
 <?php
+
 /**
  * @file example.install
  * Example install profile's install file.
  */
-require_once DRUPAL_ROOT . '/profiles/profileinstaller/InstallProfile.php';
-require_once DRUPAL_ROOT . '/profiles/profileinstaller/ProfileInstaller.php';
 require_once DRUPAL_ROOT . '/profiles/profileinstaller/ProfileInstaller.php';
 
 /**
  * Implements hook_install_tasks().
  */
-function example_install_tasks() {
-
-  // Custom base profile stuff goes here...
+function example_install_tasks(&$install_state) {
 
   $installer = ProfileInstaller::getInstallerForProfile('example');
+  $installer->getInstallTasks($install_state);
+
+  $install_state = $installer->getInstallState();
   return $installer->getInstallTasks();
+
 }
 
 /**
  * Implements hook_install_tasks_alter().
  */
 function example_install_tasks_alter(&$tasks, $install_state) {
-
-  // Custom base profile stuff goes here...
-
   $installer = ProfileInstaller::getInstallerForProfile('example');
   $tasks = $installer->alterInstallTasks($tasks, $install_state);
 }
@@ -33,10 +31,8 @@ function example_install_tasks_alter(&$tasks, $install_state) {
  * Implements hook_install().
  */
 function example_install() {
-
-    // Custom base profile stuff goes here...
-
-    $installer = ProfileInstaller::getInstallerForProfile('example');
-    $installer->install();
+  $installer = ProfileInstaller::getInstallerForProfile('example');
+  $installer->install();
 }
 
+// @todo hook_update_N

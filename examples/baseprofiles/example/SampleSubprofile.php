@@ -1,6 +1,6 @@
 <?php
 
-class SampleSubProfile extends SubProfile {
+class SampleSubprofile extends Subprofile {
     /*
     function getDependencies() {}
     function alterDependencies() {}

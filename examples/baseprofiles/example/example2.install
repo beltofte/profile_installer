@@ -1,3 +1,4 @@
 <?php
+// @todo
 $installer = ProfileInstaller::getInstallerForProfile('example2');
-eval($installer->getDrupalHookImplementationsForFile(__FILE__));
+eval($installer->getCodeForFile(__FILE__));
