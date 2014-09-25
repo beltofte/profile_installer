@@ -1,27 +1,29 @@
 <?php
 /**
- * @file SubProfile.php
- * Provides SubProfile abstract class.
+ * @file Subprofile.php
+ * Provides Subprofile abstract class.
  */
 
 /**
- * Provides SubProfile class to extend Drupal install profiles.
+ * Provides Subprofile class to extend Drupal install profiles.
  *
  * Implements Observer design pattern using the Standard PHP Library's (SPL)
- * SplObserver interface. Installer is the subject. SubProfiles (classes
- * extending the SubProfile class) are observers.
+ * SplObserver interface. Installer is the subject. Subprofiles (classes
+ * extending the Subprofile class) are observers.
  *
  * @see http://php.net/spl
  * @see http://php.net/manual/en/class.splobserver.php
  *
  * @param SplSubject $subject
  */
-abstract class SubProfile implements SplObserver, InstallProfile {
+abstract class Subprofile implements SplObserver, InstallProfile {
+  private $name;
   private $installer;
+  private $dependencies;
 
-  function __construct( SplSubject $installer ) {
+  function __construct( string $name, ProfileInstaller $installer ) {
+    $this->name = $name;
     $this->installer = $installer;
-    $installer->attach( $this );
   }
 
   /**
@@ -48,17 +50,17 @@ abstract class SubProfile implements SplObserver, InstallProfile {
   * InstallProfile interface. ==================================================
   */
   public function getDependencies() {
-    $dependencies = $this->getDependenciesFromInfoFile();
-    $this->installer->addDependencies($dependencies);
-  }
+    $installer = $this->installer;
 
-  public function getDependenciesFromInfoFile() {
+    if (empty($this->dependencies)) {
+      $this->setDependencies();
+    }
 
-    // @todo get local info file.
-    // $info_file = ... ;
+    if ($installer->getHookInvoked() == $installer::GET_DEPENDENCIES) {
+      $installer->addDependencies($dependencies);
+    }
 
-    $info = drupal_parse_info_file($info_file);
-    return $info['dependencies'];
+    return $this->dependencies;
   }
 
   /*
@@ -69,5 +71,20 @@ abstract class SubProfile implements SplObserver, InstallProfile {
   public function alterInstallConfigureForm();
   public function submitInstallConfigureForm();
   // */
+
+  /**
+   * Getters and setters. ======================================================
+   */
+
+  public function setDependencies() {
+    $this->dependencies = $this->getDependenciesFromInfoFile();
+  }
+
+  public function getDependenciesFromInfoFile() {
+    $installer = $this->installer;
+    $info_file = $installer->getSubprofileInfoFile($this->name);
+    $info = drupal_parse_info_file($info_file);
+    return $info['dependencies'];
+  }
 
 }
