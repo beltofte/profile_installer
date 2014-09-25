@@ -98,10 +98,23 @@ abstract class Subprofile implements SplObserver, InstallProfile {
     //   variable_set('site_name', 'Hello World!');
   }
 
-  /*
-  public function alterInstallConfigureForm();
-  public function submitInstallConfigureForm();
-  // */
+  public function alterInstallConfigureForm() {
+    /*
+    $form = $this->installer->getInstallConfigureForm();
+    $form_state = $this->installer->getInstallConfigureFormState();
+    // Do anything you'd do in hook_form_alter here....
+    $this->installer->setInstallConfigureForm($form);
+    // */
+  }
+
+  public function submitInstallConfigureForm() {
+    /*
+    $form = $this->installer->getInstallConfigureForm();
+    $form_state = $this->installer->getInstallConfigureFormState();
+    // Make changes to form_state or do custom form submission handling here...
+    $this->installer->setInstallConfigureFormState($form_state);
+    // */
+  }
 
   /**
    * Getters and setters. ======================================================
