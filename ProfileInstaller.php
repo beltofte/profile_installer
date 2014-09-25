@@ -101,6 +101,10 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     strtolower($project_name);
     strtolower($class_name);
 
+    // Names like my_project and MyProject are valid. Strip out _ for comparison.
+    $project_name = $this->removeUnderscores($project_name);
+    $class_name = $this->removeUnderscores($class_name);
+
     // Check acceptable variations of class name.
     // Names like myproject and MyProject are valid.
     if ($project_name == $class_name) {
@@ -112,6 +116,10 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     }
 
     return $match;
+  }
+
+  public static function removeUnderscores($subject) {
+    return str_replace('_', '', $subject);
   }
 
   public static function removeFileExtensionFromFile($extension, $filename) {
@@ -219,7 +227,6 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     $this->notify();
     return $this->getDependencies();
   }
-
 
   public function alterInstallTasks($install_tasks, $drupal_install_state) {
     $this->setHookInvoked(self::ALTER_INSTALL_TASKS);
