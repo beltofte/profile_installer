@@ -63,11 +63,42 @@ abstract class Subprofile implements SplObserver, InstallProfile {
     return $this->dependencies;
   }
 
+  public function alterDependencies() {
+    /*
+    $dependencies = $this->installer->getDependencies();
+    // Make changes to $dependencies here...
+    $this->installer->setDependencies($dependencies);
+    // */
+  }
+
+  public function getInstallTasks() {
+    /*
+    $my_tasks = array( ... );
+    $this->installer->addInstallTasks($my_tasks);
+
+    $install_state = array( ... );
+    $this->installer->setDrupalInstallState($my_tasks);
+
+    return $my_tasks;
+    // */
+  }
+
+  public function alterInstallTasks() {
+    /*
+    $tasks = $this->installer->getInstallTasks();
+    // Make changes to $tasks here...
+    $this->installer->setInstallTasks($tasks);
+    // */
+  }
+
+  public function install() {
+    // Execute custom install code here. This runs after install tasks complete.
+    // Anything you might put in hook_install in a base profile can go here.
+    // For example:
+    //   variable_set('site_name', 'Hello World!');
+  }
+
   /*
-  public function alterDependencies();
-  public function getInstallTasks();
-  public function alterInstallTasks();
-  public function install();
   public function alterInstallConfigureForm();
   public function submitInstallConfigureForm();
   // */
