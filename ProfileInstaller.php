@@ -72,7 +72,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   private function initializeAndAttachSubprofiles() {
     $subprofile_names = array_merge(
       $this->getSubprofileNamesFromInfoFile(),
-      $this->getSubprofileNamesFromSiteSettings(),
+      $this->getSubprofileNamesFromSiteSettings()
     );
 
     foreach ($subprofile_names as $subprofile_name) {
@@ -119,16 +119,6 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     return substr($filename, 0, $length * -1);
   }
 
-
-  private function loadSubprofileNamesFromInfoFile() {
-    // @todo
-    // $info_file = ...
-
-    $info = drupal_parse_info_file($info_file);
-    $result = (isset($info['subprofiles'])) ? $info['subprofiles'] : array();
-    return $result;
-  }
-
   private function getSubprofileNamesFromSiteSettings() {
       // @todo Verify variable_get works immediately after bootstrap. Otherwise use $conf or prevent initializing until later (like getDependencies).
     return variable_get('subprofiles', array());
@@ -137,7 +127,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   private function getSubprofileNamesFromInfoFile() {
     $info_file = $this->getBaseProfilePath() . '/' . $this->getBaseProfileName() . '.info';
     $info = drupal_parse_info_file($info_file);
-    $subprofile_names = (isset($info['subprofiles']) ? $info['subprofiles'] : array();
+    $subprofile_names = (isset($info['subprofiles'])) ? $info['subprofiles'] : array();
     return $subprofile_names;
   }
 
@@ -148,7 +138,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
    *   ProfileInstaller instance.
    */
   public static function getInstallerForProfile($baseprofile_name) {
-    if (self::baseProfileExists($baseprofile_name, TRUE)) {
+    if (self::baseProfileExists($baseprofile_name)) {
       self::_getInstallerForProfile($baseprofile_name);
     }
   }
@@ -193,8 +183,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   /**
    * InstallProfile interface. =================================================
    */
-  public function getInstallTasks() {
-
+  public function getInstallTasks($drupal_install_state) {
     // Drupal invokes hook_install_tasks several times throughout the install
     // process. When this hook is invoked after install_system_module (which
     // sets the variable install_profile_modules) and before the function
@@ -209,66 +198,53 @@ class ProfileInstaller implements SplSubject, InstallProfile {
       variable_set('install_profile_modules', $dependencies);
     }
 
-    // Only retreive install tasks from subprofiles once. If $tasks have been
-    // populated, this has already been executed.
-    if (empty($this->install_tasks)) {
-      $this->setHookInvoked(GET_INSTALL_TASKS);
-      $this->setDrupalInstallState($drupal_install_state);
-      $this->notify();
+    $this->setHookInvoked(self::GET_INSTALL_TASKS);
+    $this->setDrupalInstallState($drupal_install_state);
+    $this->notify();
 
-      // CONTINUE HERE
-      // Add tasks for installing dependencies.
-      /*
-      $subprofiles = $installUtility->getSubprofiles();
-      foreach ($subprofiles as $name => $properties) {
-        $subprofileClass = $properties['class_name'];
-        require_once "{$properties['path']}/{$subprofileClass}.php";
-        $installer->attach( new $subprofileClass() );
-      }
-      // */
-    }
     return $this->install_tasks;
   }
 
   public function getDependencies() {
     // Only retrieve dependencies from subprofiles once.
     if (empty($this->dependencies)) {
-      $this->setHookInvoked(GET_DEPENDENCIES);
+      $this->setHookInvoked(self::GET_DEPENDENCIES);
       $this->notify();
     }
     return $this->dependencies;
   }
 
   public function alterDependencies() {
-    $this->setHookInvoked(ALTER_DEPENDENCIES);
+    $this->setHookInvoked(self::ALTER_DEPENDENCIES);
     $this->notify();
     return $this->getDependencies();
   }
 
 
   public function alterInstallTasks($install_tasks, $drupal_install_state) {
-    $this->setHookInvoked(ALTER_INSTALL_TASKS);
+    $this->setHookInvoked(self::ALTER_INSTALL_TASKS);
     $this->setDrupalInstallState($drupal_install_state);
+    $this->setInstallTasks($install_tasks);
     $this->notify();
     return $this->getInstallTasks();
   }
 
   public function install() {
-    $this->setHookInvoked(INSTALL);
+    $this->setHookInvoked(self::INSTALL);
     $this->notify();
   }
 
   public function alterInstallConfigureForm($install_configure_form, $install_configure_form_state) {
     $this->install_configure_form = $install_configure_form;
     $this->install_configure_form_state = $install_configure_form_state;
-    $this->setHookInvoked(ALTER_INSTALL_CONFIGURE_FORM);
+    $this->setHookInvoked(self::ALTER_INSTALL_CONFIGURE_FORM);
     $this->notify();
   }
 
   public function submitInstallConfigureForm($install_configure_form, $install_configure_form_state) {
     $this->install_configure_form = $install_configure_form;
     $this->install_configure_form_state = $install_configure_form_state;
-    $this->setHookInvoked(SUBMIT_INSTALL_CONFIGURE_FORM);
+    $this->setHookInvoked(self::SUBMIT_INSTALL_CONFIGURE_FORM);
     $this->notify();
   }
 

@@ -73,12 +73,17 @@ abstract class Subprofile implements SplObserver, InstallProfile {
 
   public function getInstallTasks() {
     /*
+    // Add your own custom tasks here...
     $my_tasks = array( ... );
     $this->installer->addInstallTasks($my_tasks);
 
-    $install_state = array( ... );
-    $this->installer->setDrupalInstallState($my_tasks);
+    $install_state = $installer->getDrupalInstallState();
+    // Modify install_state here...
+    $this->installer->setDrupalInstallState($install_state);
 
+    // Return value is not actually necessary for ProfileInstaller. But who
+    // knows who else might call this? The function begins with the verb "get",
+    // so return what was requested.
     return $my_tasks;
     // */
   }
