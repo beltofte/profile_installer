@@ -1,8 +1,10 @@
 <?php
+
 /**
  * @file ProfileInstaller.php
  * Provides BaseProfile class.
  */
+require_once DRUPAL_ROOT . '/profiles/profileinstaller/InstallProfile.php';
 
 /**
  * Provides BaseProfile class to manage installation for Drupal install profiles.
@@ -57,7 +59,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
 
   private $dependencies;
   private $hook_invoked;
-  private $instance;
+  private static $instance;
 
   /**
    * Constructor is private. Instantiate via ProfileInstaller::getInstallerForProfile.
@@ -76,6 +78,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     );
 
     foreach ($subprofile_names as $subprofile_name) {
+      $this->getSubprofileDetails($subprofile_name);
       include_once $this->getSubprofileClassFile($subprofile_name);
       $subprofile_class = $this->getSubprofileClassName($subprofile_name);
       $this->attach( new $subprofile_class($subprofile_name, $this) );
@@ -87,7 +90,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
    */
   public static function isSubprofileClassFile($uri) {
     // If extension isn't .php, it's definitely not a valid class file.
-    if (substr($uri) != '.php') {
+    if (substr($uri, -4) != '.php') {
       return FALSE;
     }
 
@@ -98,12 +101,12 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     $match = FALSE;
 
     // Match is case insensitive.
-    strtolower($project_name);
-    strtolower($class_name);
+    $project_name = strtolower($project_name);
+    $class_name = strtolower($class_name);
 
     // Names like my_project and MyProject are valid. Strip out _ for comparison.
-    $project_name = $this->removeUnderscores($project_name);
-    $class_name = $this->removeUnderscores($class_name);
+    $project_name = self::removeUnderscores($project_name);
+    $class_name = self::removeUnderscores($class_name);
 
     // Check acceptable variations of class name.
     // Names like myproject and MyProject are valid.
@@ -146,17 +149,18 @@ class ProfileInstaller implements SplSubject, InstallProfile {
    *   ProfileInstaller instance.
    */
   public static function getInstallerForProfile($baseprofile_name) {
-    if (self::baseProfileExists($baseprofile_name)) {
-      self::_getInstallerForProfile($baseprofile_name);
+    if (!self::baseProfileExists($baseprofile_name)) {
+      throw new Exception("Profile not found: {$baseprofile_name}");
     }
+    if (empty(self::$instance)) {
+      self::$instance = new self($baseprofile_name);
+    }
+    return self::$instance;
   }
 
   public static function baseProfileExists($baseprofile_name, $raise_exception = FALSE) {
     $path = self::getPathToBaseProfile($baseprofile_name);
     $exists = is_dir($path);
-    if (!$exists && $raise_exception) {
-      throw new Exception("Profile does not exist: {$baseprofile_name}");
-    }
     return $exists;
   }
 
@@ -191,7 +195,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   /**
    * InstallProfile interface. =================================================
    */
-  public function getInstallTasks($drupal_install_state) {
+  public function getInstallTasks() {
     // Drupal invokes hook_install_tasks several times throughout the install
     // process. When this hook is invoked after install_system_module (which
     // sets the variable install_profile_modules) and before the function
@@ -207,9 +211,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     }
 
     $this->setHookInvoked(self::GET_INSTALL_TASKS);
-    $this->setDrupalInstallState($drupal_install_state);
     $this->notify();
-
     return $this->install_tasks;
   }
 
@@ -228,11 +230,13 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     return $this->getDependencies();
   }
 
-  public function alterInstallTasks($install_tasks, $drupal_install_state) {
+  public function alterInstallTasks() {
     $this->setHookInvoked(self::ALTER_INSTALL_TASKS);
-    $this->setDrupalInstallState($drupal_install_state);
-    $this->setInstallTasks($install_tasks);
     $this->notify();
+
+    // Zero out install state, so people don't look at outdated state info later.
+    $this->setDrupalInstallState(array());
+
     return $this->getInstallTasks();
   }
 
@@ -241,16 +245,14 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     $this->notify();
   }
 
-  public function alterInstallConfigureForm($install_configure_form, $install_configure_form_state) {
+  public function alterInstallConfigureForm() {
     $this->install_configure_form = $install_configure_form;
     $this->install_configure_form_state = $install_configure_form_state;
     $this->setHookInvoked(self::ALTER_INSTALL_CONFIGURE_FORM);
     $this->notify();
   }
 
-  public function submitInstallConfigureForm($install_configure_form, $install_configure_form_state) {
-    $this->install_configure_form = $install_configure_form;
-    $this->install_configure_form_state = $install_configure_form_state;
+  public function submitInstallConfigureForm() {
     $this->setHookInvoked(self::SUBMIT_INSTALL_CONFIGURE_FORM);
     $this->notify();
   }
@@ -296,12 +298,11 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     return $this->drupal_install_state;
   }
 
-  private function setDrupalInstallState($drupal_install_state) {
-    $this->_checkSetter('drupal_install_state', 'set', array(self::ALTER_INSTALL_TASKS));
+  public function setDrupalInstallState($drupal_install_state) {
     $this->drupal_install_state = $drupal_install_state;
   }
 
-  public function setDependencies(array $dependencies) {
+  public function setDependencies($dependencies) {
     $this->_checkSetter('dependencies', 'set', array(
       self::GET_DEPENDENCIES,
       self::ALTER_DEPENDENCIES,
@@ -309,15 +310,15 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     $this->dependencies = $dependencies;
   }
 
-  public function addDependencies(array $dependencies) {
+  public function addDependencies($dependencies) {
     $this->_checkSetter('dependencies', 'added', array(
       self::GET_DEPENDENCIES,
       self::ALTER_DEPENDENCIES,
     ));
-    $this->dependencies = array_merge($$this->dependencies, $dependencies);
+    $this->dependencies = array_merge($this->dependencies, $dependencies);
   }
 
-  public function setInstallTasks(array $install_tasks) {
+  public function setInstallTasks($install_tasks) {
     $this->_checkSetter('install_tasks', 'set', array(
       self::GET_INSTALL_TASKS,
       self::ALTER_INSTALL_TASKS,
@@ -325,7 +326,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     $this->install_tasks = $install_tasks;
   }
 
-  public function addInstallTasks(array $install_tasks) {
+  public function addInstallTasks($install_tasks) {
     $this->_checkSetter('install_tasks', 'added', array(
       self::GET_INSTALL_TASKS,
       self::ALTER_INSTALL_TASKS,
@@ -391,7 +392,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   }
 
   public function setSubprofileDetails($subprofile_name) {
-    $class_info = $this->getSubprofileClassInfo($subprofile_name);
+    $class_info = $this->getSubprofileClassInfo($subprofile_name, TRUE);
 
     $this->setSubprofilePath($subprofile_name);
     $this->setSubprofileName($subprofile_name);
@@ -402,13 +403,13 @@ class ProfileInstaller implements SplSubject, InstallProfile {
 
   public function getSubprofilePath($subprofile_name, $raise_exception = FALSE) {
     if (empty($this->subprofiles_details[$subprofile_name]['subprofile_path'])) {
-      $subprofile_path = $this->_getSubprofilePath($subprofile_name, $raise_exception);
-      $this->setSubprofilePath($subprofile_path, $subprofile_name)
+      $subprofile_path = $this->_getSubprofilePath($subprofile_name);
+      $this->setSubprofilePath($subprofile_name, $subprofile_path);
     }
     return $this->subprofiles_details[$subprofile_name]['subprofile_path'];
   }
 
-  private function _getSubprofilePath($subprofile_name, $raise_exception) {
+  private function _getSubprofilePath($subprofile_name, $raise_exception = FALSE) {
     $included_subprofile_path = DRUPAL_ROOT . "/profiles/{$this->baseprofile_name}/subprofiles/{$subprofile_name}";
     $add_on_subprofile_path = DRUPAL_ROOT . "/profiles/subprofiles/{$subprofile_name}";
 
@@ -423,14 +424,17 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     }
 
     if (!$path && $raise_exception) {
-      throw new Exception("Sub profile not found: {$subprofile_name}");
+      throw new Exception("Subprofile not found: {$subprofile_name}");
     }
 
     return $path;
   }
 
-  public function setSubprofilePath($subprofile_name) {
-    $subprofile_path = $this->getSubprofilePath($subprofile_name, TRUE);
+  public function setSubprofilePath($subprofile_name, $subprofile_path = NULL) {
+    if (empty($subprofile_path)) {
+      // We know how to figure out what the path is.
+      $subprofile_path = $this->_getSubprofilePath($subprofile_name);
+    }
     $this->subprofiles_details[$subprofile_name]['subprofile_path'] = $subprofile_path;
   }
 
@@ -449,7 +453,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
 
       foreach(file_scan_directory($subprofile_path, '/.*/') as $file) {
         if (self::isSubprofileClassFile($file->uri)) {
-          $info['class_name'] = self::removeFileExtensionFromFile('.php', $file->name);
+          $info['class_name'] = $file->name;
           $info['class_file'] = $file->uri;
         }
       }
@@ -515,7 +519,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     * @throws Exception
     *   Notify user about how to correct their mistake when an exception is thrown.
     */
-  private function _checkSetter(string $nouns, string $verbed, array $hooks) {
+  private function _checkSetter($nouns, $verbed, array $hooks) {
     if (!in_array($this->getHookInvoked(), $hooks)) {
       throw new Exception("{$nouns} can only be {$verbed} via " . implode(', ', $hooks));
     }
@@ -536,7 +540,7 @@ class ProfileInstaller implements SplSubject, InstallProfile {
      * @throws Exception
      *   Notify user about how to correct their mistake when exception is thrown.
      */
-    private function _checkGetter(string $property, array $hooks){
+    private function _checkGetter($property, array $hooks){
     if (!in_array($this->getHookInvoked(), $hooks)) {
       throw new Exception("{$property} only available via " . implode(', ', $hooks));
     }

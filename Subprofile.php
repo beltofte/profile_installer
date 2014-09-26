@@ -3,6 +3,7 @@
  * @file Subprofile.php
  * Provides Subprofile abstract class.
  */
+require_once DRUPAL_ROOT . '/profiles/profileinstaller/InstallProfile.php';
 
 /**
  * Provides Subprofile class to extend Drupal install profiles.
@@ -21,7 +22,7 @@ abstract class Subprofile implements SplObserver, InstallProfile {
   private $installer;
   private $dependencies;
 
-  function __construct( string $name, ProfileInstaller $installer ) {
+  function __construct($name, ProfileInstaller $installer ) {
     $this->name = $name;
     $this->installer = $installer;
   }
@@ -57,7 +58,7 @@ abstract class Subprofile implements SplObserver, InstallProfile {
     }
 
     if ($installer->getHookInvoked() == $installer::GET_DEPENDENCIES) {
-      $installer->addDependencies($dependencies);
+      $installer->addDependencies($this->dependencies);
     }
 
     return $this->dependencies;
