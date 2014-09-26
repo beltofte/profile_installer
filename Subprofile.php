@@ -54,13 +54,10 @@ abstract class Subprofile implements SplObserver, InstallProfile {
     $installer = $this->installer;
 
     if (empty($this->dependencies)) {
-      $this->setDependencies();
+      $dependencies = $this->getDependenciesFromInfoFile();
+      $this->setDependencies($dependencies);
     }
-
-    if ($installer->getHookInvoked() == $installer::GET_DEPENDENCIES) {
-      $installer->addDependencies($this->dependencies);
-    }
-
+    $installer->addDependencies($this->dependencies);
     return $this->dependencies;
   }
 
@@ -126,8 +123,8 @@ abstract class Subprofile implements SplObserver, InstallProfile {
    * Getters and setters. ======================================================
    */
 
-  public function setDependencies() {
-    $this->dependencies = $this->getDependenciesFromInfoFile();
+  public function setDependencies($dependencies) {
+    $this->dependencies = $dependencies;
   }
 
   public function getDependenciesFromInfoFile() {

@@ -203,11 +203,11 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     // deletes this variable), we insert a hook to enable subprofiles to add/alter
     // dependencies too.
     if ($baseprofile_dependencies = variable_get('install_profile_modules', FALSE)) {
-      $subprofile_dependencies = $this->getDependencies();
-      $dependencies = array_unique(array_merge($baseprofile_dependencies, $subprofile_dependencies));
-      $this->setDependencies($dependencies);
+      $this->setHookInvoked(self::GET_DEPENDENCIES);
+      $this->addDependencies($baseprofile_dependencies);
+      $this->getDependencies();
       $this->alterDependencies();
-      variable_set('install_profile_modules', $dependencies);
+      variable_set('install_profile_modules', $this->dependencies);
     }
 
     $this->setHookInvoked(self::GET_INSTALL_TASKS);
@@ -216,11 +216,8 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   }
 
   public function getDependencies() {
-    // Only retrieve dependencies from subprofiles once.
-    if (empty($this->dependencies)) {
-      $this->setHookInvoked(self::GET_DEPENDENCIES);
-      $this->notify();
-    }
+    $this->setHookInvoked(self::GET_DEPENDENCIES);
+    $this->notify();
     return $this->dependencies;
   }
 
@@ -233,21 +230,51 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   public function alterInstallTasks() {
     $this->setHookInvoked(self::ALTER_INSTALL_TASKS);
     $this->notify();
-
-    // Zero out install state, so people don't look at outdated state info later.
-    $this->setDrupalInstallState(array());
-
     return $this->getInstallTasks();
   }
 
   public function install() {
+
+    // CONTINUE HERE
+    //
+    // @TODO This is running before modules are finished being installed, then fails. Probably
+    // becasue of the way we're shoe-horning modules into
+    // install_profile_modules. Figure out the proper way to fix. In the meanwhile,
+    // manually check to see if dependencies are all installed. If so, proceed.
+    // If not, wait, then try again.
+
+    // $dependencies = $this->getDependencies();
+    // $this->waitForDependencyInstalls($dependencies);
+
     $this->setHookInvoked(self::INSTALL);
     $this->notify();
   }
 
+  /**
+   * THIS DOESN'T WORK. IT JUST MAKES EVERYTHING HANG. :(
+   */
+  private function waitForDependencyInstalls($dependencies, $max_wait_seconds = 600) {
+    $dependencies_are_installed = self::modulesAreInstalled($dependencies);
+    $wait_time = 0;
+    while ($dependencies_are_installed == FALSE && $wait_time < $max_wait_seconds) {
+      sleep(5);
+      $wait_time += 5;
+      $dependencies_are_installed = self::modulesAreInstalled($dependencies);
+    }
+  }
+
+  public static function modulesAreInstalled($modules) {
+    foreach ($modules as $module) {
+      if (!module_exists($module)) {
+        // If a single module in the list is not installed, return false.
+        return FALSE;
+      }
+    }
+    // If we make it to here, all modules in our list are installed.
+    return TRUE;
+  }
+
   public function alterInstallConfigureForm() {
-    $this->install_configure_form = $install_configure_form;
-    $this->install_configure_form_state = $install_configure_form_state;
     $this->setHookInvoked(self::ALTER_INSTALL_CONFIGURE_FORM);
     $this->notify();
   }
@@ -303,26 +330,37 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   }
 
   public function setDependencies($dependencies) {
+    /*
     $this->_checkSetter('dependencies', 'set', array(
       self::GET_DEPENDENCIES,
       self::ALTER_DEPENDENCIES,
     ));
+    // */
     $this->dependencies = $dependencies;
   }
 
   public function addDependencies($dependencies) {
+    /*
     $this->_checkSetter('dependencies', 'added', array(
       self::GET_DEPENDENCIES,
       self::ALTER_DEPENDENCIES,
     ));
-    $this->dependencies = array_merge($this->dependencies, $dependencies);
+    // */
+    if (empty($this->dependencies)) {
+      $this->dependencies = $dependencies;
+    }
+    else {
+      $this->dependencies = array_unique(array_merge($this->dependencies, $dependencies));
+    }
   }
 
   public function setInstallTasks($install_tasks) {
+    /*
     $this->_checkSetter('install_tasks', 'set', array(
       self::GET_INSTALL_TASKS,
       self::ALTER_INSTALL_TASKS,
     ));
+    // */
     $this->install_tasks = $install_tasks;
   }
 
@@ -343,7 +381,8 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   }
 
   public function setInstallConfigureForm($install_configure_form) {
-    $this->_checkSetter('install_configure_form', 'set', array(self::ALTER_INSTALL_CONFIGURE_FORM));
+    // @todo Now that this is set before the hook is invoked, this validation is broken.
+    // $this->_checkSetter('install_configure_form', 'set', array(self::ALTER_INSTALL_CONFIGURE_FORM));
     $this->install_configure_form = $install_configure_form;
   }
 
@@ -356,10 +395,13 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   }
 
   public function setInstallConfigureFormState($install_configure_form_state) {
+    // @todo Now that this is set before the hook is invoked, this validation is broken.
+    /*
     $this->_checkSetter('install_configure_form_state', 'set', array(
       self::ALTER_INSTALL_CONFIGURE_FORM,
       self::SUBMIT_INSTALL_CONFIGURE_FORM,
     ));
+    // */
     $this->install_configure_form_state = $install_configure_form_state;
   }
 
@@ -521,7 +563,10 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     */
   private function _checkSetter($nouns, $verbed, array $hooks) {
     if (!in_array($this->getHookInvoked(), $hooks)) {
-      throw new Exception("{$nouns} can only be {$verbed} via " . implode(', ', $hooks));
+      $hooks = implode(', ', $hooks);
+      $message = "{$nouns} can only be {$verbed} via {$hooks}. ";
+      $message .= "Hook/Method currently being invoked: " . $this->getHookInvoked();
+      throw new Exception($message);
     }
   }
 
