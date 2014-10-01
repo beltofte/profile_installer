@@ -12,7 +12,8 @@ require_once DRUPAL_ROOT . '/profiles/profileinstaller/ProfileInstaller.php';
 function example_install_tasks(&$install_state) {
 
   $installer = ProfileInstaller::getInstallerForProfile('example');
-  $installer->getInstallTasks($install_state);
+  $installer->setDrupalInstallState($install_state);
+  $installer->getInstallTasks();
 
   $install_state = $installer->getInstallState();
   return $installer->getInstallTasks();
@@ -24,7 +25,10 @@ function example_install_tasks(&$install_state) {
  */
 function example_install_tasks_alter(&$tasks, $install_state) {
   $installer = ProfileInstaller::getInstallerForProfile('example');
-  $tasks = $installer->alterInstallTasks($tasks, $install_state);
+  $tasks = $installer->setInstallTasks($tasks);
+  $tasks = $installer->setDrupalInstallState($install_state);
+
+  $tasks = $installer->alterInstallTasks();
 }
 
 /**

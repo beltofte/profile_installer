@@ -16,3 +16,16 @@
  * - an installation task (see example_install_tasks, BaseProfile::install_tasks, and Subprofile::update)
  * - inside a required module (see example.info, BaseProfile::getDependencies, and Subprofile::update).
  */
+require_once DRUPAL_ROOT . '/profiles/profileinstaller/ProfileInstaller.php';
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function example_form_install_configure_form_alter(&$form, $form_state) {
+  $installer = ProfileInstaller::getInstallerForProfile('example');
+  $installer->setInstallConfigureForm($form);
+  $installer->InstallConfigureFormState($form_state);
+  $installer->alterInstallConfigureForm();
+
+  $form = $installer->getInstallConfigureForm();
+}

@@ -10,6 +10,10 @@
  * Allows the profile to alter the site configuration form.
  */
 function standard2_form_install_configure_form_alter(&$form, $form_state) {
-  // Pre-populate the site name with the server name.
-  $form['site_information']['site_name']['#default_value'] = $_SERVER['SERVER_NAME'];
+  $installer = ProfileInstaller::getInstallerForProfile('standard2');
+  $installer->setInstallConfigureForm($form);
+  $installer->setInstallConfigureFormState($form_state);
+  $installer->alterInstallConfigureForm();
+
+  $form = $installer->getInstallConfigureForm();
 }
