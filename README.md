@@ -1,7 +1,7 @@
 Profile Installer
 =================
 
-Provides BaseProfile class to manage installation for Drupal install profiles. Install profiles using BaseProfile to manage installation can be extended by sub profiles the way themes are extended and overridden by subthemes and the way Drupal can be extended and overridden by modules.
+Provides BaseProfile class to manage installation for Drupal install profiles. Install profiles using BaseProfile to manage installation can be extended by subprofiles the way themes are extended and overridden by subthemes and the way Drupal can be extended and overridden by modules.
 
 Installation and setup (for base profiles)
 ------------------------------------------
@@ -20,11 +20,11 @@ Make your install profile a base profile that supports subprofiles like this:
 Create a subprofile
 -------------------
 
-SubProfiles include two files:
+Subprofiles include two files:
 
   mysubprofile.info: Declares subprofile's dependencies (just like a standard info file for any other Drupal install profile).
 
-  MySubProfile.php: Includes MySubProfile class. MySubProfile extends abstract SubProfile class (see SampleSubProfile.php), giving it the ability to hook into Drupal's installation process at all the same places where a standard install profile hooks in to set up an application..
+  MySubprofile.php: Includes MySubprofile class. MySubprofile extends abstract Subprofile class (see SampleSubprofile.php), giving it the ability to hook into Drupal's installation process at all the same places where a standard install profile hooks in to set up an application..
 
 
 Using subprofiles
