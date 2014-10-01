@@ -6,49 +6,71 @@
  */
 require_once DRUPAL_ROOT . '/profiles/profileinstaller/InstallProfile.php';
 
-/**
- * Provides BaseProfile class to manage installation for Drupal install profiles.
- *
- * Install profiles using BaseProfile to manage installation are "base profiles".
- * Base profiles can be extended by subprofiles.
- *
- * Implements Observer design pattern using the Standard PHP Library's (SPL)
- * SplSubject interface and SplObjectStorage class. BaseProfile is the subject.
- * Subprofiles are observers.
- *
- * Implements Singleton design pattern. Enables a single instance of BaseProfile to
- * control the installation process. A Drupal install profile makes itself subprofile-able by
- * instantiating BaseProfile, implementing standard Drupal hooks for install profiles,
- * and handing off control to BaseProfile.
- *
- * @see http://php.net/spl
- * @see http://php.net/manual/en/class.splsubject.php
- * @see http://php.net/manual/en/class.splobjectstorage.php
- */
 class ProfileInstaller implements SplSubject, InstallProfile {
 
+  private $baseprofile_name;
+  private $baseprofile_path;
+  private $profiles;
+
+  public function __construct($baseprofile_name) {
+    $this->setBaseProfileName($baseprofile_name);
+    $this->setBaseProfilePath();
+    $this->setProfilesIncludedByBaseProfile();
+  }
+
+
   public static function installProfilesIncludedByProfile($profile) {
-    $installer = self::getInstallerForProfile($profile);
+    $installer = new self($profile);
     $installer->install();
   }
 
   /**
-   * ProfileInstaller is a singleton. This method provides a public function to get an instance.
-   *
-   * @param string $profile_name
-   *   Name
-   *
-   * @return obj
-   *   ProfileInstaller instance.
+   * Run install script (invoke hook_install) for included profiles.
    */
-  public static function getInstallerForProfile($profile_name) {
-    if (!self::baseProfileExists($profile_name)) {
-      throw new Exception("Profile not found: {$profile_name}");
+  public function install() {
+    foreach ($this->profiles as $profile_name) {
+      $path = $this->getPathToProfile($profile_name);
+      include_once $path;
+      $func = "{$profile_name}_install()";
+      call_user_func($func);
     }
-    if (empty(self::$instance)) {
-      self::$instance = new self($profile_name);
+  }
+
+  public static function profileExists($profile_name, $raise_exception = FALSE) {
+    $path = self::getPathToProfile($profile_name);
+    $exists = is_dir($path);
+    return $exists;
+  }
+
+  /**
+   * Getters and setters. ======================================================
+   */
+
+  private function setProfilesIncludedByBaseProfile() {
+    $profiles = $this->getProfileNamesFromInfoFile();
+    // @todo Add sorting (alpha, weight, etc.).
+    $this->profiles = $profiles;
+  }
+
+  private function getProfileNamesFromInfoFile() {
+    $info_file = $this->getBaseProfilePath() . '/' . $this->getBaseProfileName() . '.info';
+    $info = drupal_parse_info_file($info_file);
+    $profile_names = (isset($info['profiles'])) ? $info['profiles'] : array();
+    return $profile_names;
+  }
+
+  public static function getPathToProfile($profile_name) {
+    return DRUPAL_ROOT . "/profiles/{$profile_name}";
+  }
+
+  public function getBaseProfileName() {
+    return $this->baseprofile_name;
+  }
+
+  public function setBaseProfileName($baseprofile_name) {
+    if (self::profileExists($baseprofile_name, TRUE)) {
+      $this->baseprofile_name = $baseprofile_name;
     }
-    return self::$instance;
   }
 
   public static function getDependenciesForProfilesIncludedByProfile($profile_name) {
@@ -65,18 +87,17 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     // @TODO
   }
 
-  public function install() {
-
-    // @todo Get included profiles.
-    // @todo Order alphabetically.
-    // @todo Re-order by weight.
-
-    foreach ($profiles as $profile_name) {
-      // @todo Load install file.
-      // @todo Invoke hook_install.
-    }
-
+  public function getBaseProfilePath() {
+    return $this->baseprofile_path;
   }
+
+  public function setBaseProfilePath() {
+    if (empty($this->baseprofile_name)) {
+      throw new Exception("Cannot set baseprofile_path if baseprofile_name is empty.");
+    }
+    $this->baseprofile_path = $this->getPathToProfile($this->baseprofile_name);
+  }
+
 
   /**
    * ===========================================================================
@@ -110,24 +131,11 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   private $install_configure_form_state;
 
   // ProfileInstaller internals.
-  private $baseprofile_name;
-  private $baseprofile_path;
   private $subprofile_storage;
   private $subprofiles_details;
 
   private $dependencies;
   private $hook_invoked;
-  private static $instance;
-
-  /**
-   * Constructor is private. Instantiate via ProfileInstaller::getInstallerForProfile.
-   */
-  private function __construct($baseprofile_name) {
-    $this->setBaseProfileName($baseprofile_name);
-    $this->setBaseProfilePath();
-    $this->subprofile_storage = new SplObjectStorage();
-    $this->initializeAndAttachSubprofiles();
-  }
 
   private function initializeAndAttachSubprofiles() {
     $subprofile_names = array_merge(
@@ -201,19 +209,9 @@ class ProfileInstaller implements SplSubject, InstallProfile {
   }
 
 
-  public static function baseProfileExists($baseprofile_name, $raise_exception = FALSE) {
-    $path = self::getPathToBaseProfile($baseprofile_name);
-    $exists = is_dir($path);
-    return $exists;
-  }
-
-  public static function getPathToBaseProfile($baseprofile_name) {
-    return DRUPAL_ROOT . "/profiles/{$baseprofile_name}";
-  }
-
-  private static function _getInstallerForProfile($baseprofile_name) {
+  private static function _getInstallerForProfile($profile_name) {
     if (empty(self::$instance)) {
-      self::$instance = new self($baseprofile_name);
+      self::$instance = new self($profile_name);
     }
     return self::$instance;
   }
@@ -430,27 +428,6 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     ));
     // */
     $this->install_configure_form_state = $install_configure_form_state;
-  }
-
-  public function getBaseProfileName() {
-    return $this->baseprofile_name;
-  }
-
-  public function setBaseProfileName($baseprofile_name) {
-    if (self::baseProfileExists($baseprofile_name, TRUE)) {
-      $this->baseprofile_name = $baseprofile_name;
-    }
-  }
-
-  public function getBaseProfilePath() {
-    return $this->baseprofile_path;
-  }
-
-  public function setBaseProfilePath() {
-    if (empty($this->baseprofile_name)) {
-      throw new Exception("Cannot set baseprofile_path if baseprofile_name is empty.");
-    }
-    $this->baseprofile_path = $this->getPathToBaseProfile($this->baseprofile_name);
   }
 
   public function getSubprofileDetails($subprofile_name) {
