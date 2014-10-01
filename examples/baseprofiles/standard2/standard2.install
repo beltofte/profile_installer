@@ -13,29 +13,29 @@ require_once DRUPAL_ROOT . '/profiles/profileinstaller/ProfileInstaller.php';
  * @see system_install()
  */
 function standard2_install() {
-  $installer = ProfileInstaller::getInstallerForProfile('standard2');
-  $installer->install();
+  ProfileInstaller::installProfilesIncludedByProfile('standard2');
 }
 
 /**
  * Implements hook_install_tasks().
  */
 function standard2_install_tasks(&$install_state) {
-  $installer = ProfileInstaller::getInstallerForProfile('standard2');
-  $installer->setDrupalInstallState($install_state);
-  $installer->getInstallTasks();
-
-  $install_state = $installer->getDrupalInstallState();
-  return $installer->getInstallTasks();
+  $dependencies = ProfileInstaller::getDependenciesForProfilesIncludedByProfile('standard2');
+  // If there are conflicts among dependencies, those can be negotiated here.
+  $tasks = ProfileInstaller::generateTasksForInstallingDepencencies($dependencies);
+  return $tasks;
 }
 
 /**
  * Implements hook_install_tasks_alter().
  */
 function standard2_install_tasks_alter(&$tasks, $install_state) {
+  // @todo
+  /*
   $installer = ProfileInstaller::getInstallerForProfile('standard2');
-  $tasks = $installer->setInstallTasks($tasks);
-  $tasks = $installer->setDrupalInstallState($install_state);
-
-  $tasks = $installer->alterInstallTasks();
+  $installer->setDrupalInstallState($install_state);
+  $installer->setInstallTasks($tasks);
+  $installer->alterTasks();
+  $tasks = $installer->getInstallTasks();
+  // */
 }

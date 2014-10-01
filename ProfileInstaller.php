@@ -26,6 +26,64 @@ require_once DRUPAL_ROOT . '/profiles/profileinstaller/InstallProfile.php';
  * @see http://php.net/manual/en/class.splobjectstorage.php
  */
 class ProfileInstaller implements SplSubject, InstallProfile {
+
+  public static function installProfilesIncludedByProfile($profile) {
+    $installer = self::getInstallerForProfile($profile);
+    $installer->install();
+  }
+
+  /**
+   * ProfileInstaller is a singleton. This method provides a public function to get an instance.
+   *
+   * @param string $profile_name
+   *   Name
+   *
+   * @return obj
+   *   ProfileInstaller instance.
+   */
+  public static function getInstallerForProfile($profile_name) {
+    if (!self::baseProfileExists($profile_name)) {
+      throw new Exception("Profile not found: {$profile_name}");
+    }
+    if (empty(self::$instance)) {
+      self::$instance = new self($profile_name);
+    }
+    return self::$instance;
+  }
+
+  public static function getDependenciesForProfilesIncludedByProfile($profile_name) {
+    // Get profiles from info file.
+    // Get dependencies for each profile.
+    return $dependencies;
+  }
+
+  public static function generateTasksForInstallingDepencencies($dependencies) {
+    // Generate install tasks. @see install_profile_modules.
+  }
+
+  public static function alterTasksForProfile($profile_name, $install_state) {
+    // @TODO
+  }
+
+  public function install() {
+
+    // @todo Get included profiles.
+    // @todo Order alphabetically.
+    // @todo Re-order by weight.
+
+    foreach ($profiles as $profile_name) {
+      // @todo Load install file.
+      // @todo Invoke hook_install.
+    }
+
+  }
+
+  /**
+   * ===========================================================================
+   * Legacy stuff below. Remove?
+   * ===========================================================================
+   */
+
   /**
    * These constants represent different stages of the installation process
    * where Drupal enables install profiles to hook in. BaseProfile notifies
@@ -142,21 +200,6 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     return $subprofile_names;
   }
 
-  /**
-   * ProfileInstaller is a singleton. This method provides a public function to get an instance.
-   *
-   * @return obj
-   *   ProfileInstaller instance.
-   */
-  public static function getInstallerForProfile($baseprofile_name) {
-    if (!self::baseProfileExists($baseprofile_name)) {
-      throw new Exception("Profile not found: {$baseprofile_name}");
-    }
-    if (empty(self::$instance)) {
-      self::$instance = new self($baseprofile_name);
-    }
-    return self::$instance;
-  }
 
   public static function baseProfileExists($baseprofile_name, $raise_exception = FALSE) {
     $path = self::getPathToBaseProfile($baseprofile_name);
@@ -233,22 +276,6 @@ class ProfileInstaller implements SplSubject, InstallProfile {
     return $this->getInstallTasks();
   }
 
-  public function install() {
-
-    // CONTINUE HERE
-    //
-    // @TODO This is running before modules are finished being installed, then fails. Probably
-    // becasue of the way we're shoe-horning modules into
-    // install_profile_modules. Figure out the proper way to fix. In the meanwhile,
-    // manually check to see if dependencies are all installed. If so, proceed.
-    // If not, wait, then try again.
-
-    // $dependencies = $this->getDependencies();
-    // $this->waitForDependencyInstalls($dependencies);
-
-    $this->setHookInvoked(self::INSTALL);
-    $this->notify();
-  }
 
   /**
    * THIS DOESN'T WORK. IT JUST MAKES EVERYTHING HANG. :(

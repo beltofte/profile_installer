@@ -1,9 +1,7 @@
 name = Standard2
-description = Drupal core's standard install profile refactored to use Profile Installer and subprofiles.
+description = Drupal core's standard install profile refactored to use Profile Installes an example
 core = 7.x
 
-subprofiles[] = standard_settings
-; subprofiles[] = standard_content
-; subprofiles[] = standard_roles
+profiles[] = standard
 
 
