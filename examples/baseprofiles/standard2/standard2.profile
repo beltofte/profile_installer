@@ -9,6 +9,7 @@
  *
  * Allows the profile to alter the site configuration form.
  */
+/*
 function standard2_form_install_configure_form_alter(&$form, $form_state) {
   $installer = ProfileInstaller::getInstallerForProfile('standard2');
   $installer->setInstallConfigureForm($form);
@@ -17,3 +18,4 @@ function standard2_form_install_configure_form_alter(&$form, $form_state) {
 
   $form = $installer->getInstallConfigureForm();
 }
+// */

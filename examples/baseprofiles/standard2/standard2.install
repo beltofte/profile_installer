@@ -13,16 +13,25 @@ require_once DRUPAL_ROOT . '/profiles/profileinstaller/ProfileInstaller.php';
  * @see system_install()
  */
 function standard2_install() {
-  ProfileInstaller::installProfilesIncludedByProfile('standard2');
+  variable_set('site_name', 'Standard2 Demo');
 }
 
 /**
  * Implements hook_install_tasks().
  */
 function standard2_install_tasks(&$install_state) {
-  $dependencies = ProfileInstaller::getDependenciesForProfilesIncludedByProfile('standard2');
-  // If there are conflicts among dependencies, those can be negotiated here.
-  $tasks = ProfileInstaller::generateTasksForInstallingDepencencies($dependencies);
+  $installer = ProfileInstaller::getInstallerForProfile('standard2');
+
+  $modules = $installer->getIncludedProfilesDependencies();
+  // If there are conflicts among dependencies, those can be negotiated here...
+  $installer->setInstallProfileModules($modules);
+
+  $callbacks = $installer->getInstallCallbacks();
+  // Reorder or alter list of install functions to be called during installation.
+  $callbacks = array_merge(array('standard2_reset_blocks' => __FILE__), $callbacks);
+  $installer->setInstallCallbacks($callbacks);
+
+  $tasks = $installer->getInstallTasks();
   return $tasks;
 }
 
@@ -30,12 +39,16 @@ function standard2_install_tasks(&$install_state) {
  * Implements hook_install_tasks_alter().
  */
 function standard2_install_tasks_alter(&$tasks, $install_state) {
-  // @todo
-  /*
-  $installer = ProfileInstaller::getInstallerForProfile('standard2');
-  $installer->setDrupalInstallState($install_state);
-  $installer->setInstallTasks($tasks);
-  $installer->alterTasks();
-  $tasks = $installer->getInstallTasks();
-  // */
+  // $installer = ProfileInstaller::getInstallerForProfile('standard2');
+
+  $tasks['install_profile_modules']['function'] = 'profileinstaller_install_modules';
+  // $tasks['install_profile_modules']['display name'] = st('Install modules');
+}
+
+/**
+ * Delete stuff core puts into block table, so standard_install() can configure
+ * blocks, that is, make inserts into block without collisions.
+ */
+function standard2_reset_blocks() {
+  db_delete('block')->execute();
 }
