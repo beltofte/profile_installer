@@ -1,4 +1,0 @@
-<?php
-// @todo
-$installer = ProfileInstaller::getInstallerForProfile('example2');
-eval($installer->getCodeForFile(__FILE__));
