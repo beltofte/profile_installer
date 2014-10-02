@@ -216,7 +216,7 @@ class ProfileInstaller {
  */
 function profileinstaller_install_modules(&$install_state) {
   $installer = ProfileInstaller::getInstallerForProfile();
-  $modules = $installer->install_profile_modules;
+  $modules = $installer->getInstallProfileModules();
 
   $more_modules = variable_get('install_profile_modules', array());
   $modules = array_merge($modules, $more_modules);
