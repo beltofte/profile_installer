@@ -12,8 +12,6 @@ class ProfileInstaller {
   private $baseprofile_name;
   private $baseprofile_path;
   private $included_profiles;
-  private $included_profiles_dependencies;
-  private $included_profiles_dependency_removals;
   // Note: 'install_profile_modules' is the variable name used by Drupal core.
   // It's reused here for consistency with core, even though
   // install_profile_dependencies may seem more intuitive and consistent.
@@ -25,8 +23,6 @@ class ProfileInstaller {
     $this->setBaseProfileName($baseprofile_name);
     $this->setBaseProfilePath();
     $this->setIncludedProfiles();
-    // @todo remove setIncludedProfilesDependencies? Still needed?
-    $this->setIncludedProfilesDependencies();
     $this->setInstallProfileModules();
     $this->setInstallCallbacks();
   }
@@ -120,39 +116,6 @@ class ProfileInstaller {
   public static function getDependenciesForProfilesIncludedByProfile($baseprofile_name) {
     $installer = new self($baseprofile_name);
     return $installer->getIncludedProfilesDependencies();
-  }
-
-  public function getIncludedProfilesDependencies() {
-    if (empty($this->included_profiles_dependencies)) {
-      $this->setIncludedProfilesDependencies();
-    }
-
-    return $this->included_profiles_dependencies;
-  }
-
-  private function setIncludedProfilesDependencies() {
-    $dependencies = array();
-    foreach ($this->included_profiles as $profile_name) {
-      $additional_dependencies = self::getAllDependenciesForProfile($profile_name);
-      $dependencies = array_unique(array_merge($dependencies, $additional_dependencies));
-    }
-    $this->included_profiles_dependencies = $dependencies;
-  }
-
-  function setIncludedProfilesDependencyRemovals() {
-    $removals = array();
-    foreach ($this->included_profiles as $profile_name) {
-      $additional_removals = self::getAllDependencyRemovalsForProfile($profile_name);
-      $removals = array_unique(array_merge($removals, $additional_removals));
-    }
-    $this->included_profiles_dependency_removals = $removals;
-  }
-
-  function getIncludedProfilesDependencyRemovals() {
-    if (empty($this->included_profiles_dependency_removals)) {
-      $this->setIncludedProfilesDependencyRemovals();
-    }
-    return $this->included_profiles_dependency_removals;
   }
 
   function getInstallProfileDependencyRemovals() {
