@@ -23,15 +23,16 @@ function profile_installer_get_install_tasks($profile_name) {
  * a standalone function.
  *
  * The core logic here is copied from install_profile_modules() in install.core.inc.
- * We just use our own list of modules from profiles' info files to populate
+ * We just merge our own list of modules from profiles' info files to populate
  * the modules list.
  */
 function profile_installer_install_modules(&$install_state) {
   $installer = ProfileInstaller::getInstallerForProfile();
   $modules = $installer->getInstallProfileModules();
 
+  // Get modules core requires and stores in install_profile_modules variable.
   $more_modules = variable_get('install_profile_modules', array());
-  $modules = array_merge($modules, $more_modules);
+  $modules = array_unique(array_merge($modules, $more_modules));
   variable_del('install_profile_modules');
 
   $files = system_rebuild_module_data();
