@@ -3,6 +3,7 @@
  * @file
  *
  */
+require_once DRUPAL_ROOT . '/profiles/profile_installer/ProfileInstaller.php';
 
 /**
  * Callback for task to install profiles' dependencies.
