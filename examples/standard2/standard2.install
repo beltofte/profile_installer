@@ -27,10 +27,6 @@ function standard2_install() {
 function standard2_install_tasks(&$install_state) {
   $installer = ProfileInstaller::getInstallerForProfile('standard2');
 
-  // Remove dependencies declared by included profiles as needed.
-  $modules = array('dblog');
-  $installer->removeInstallProfileModules($modules);
-
   // Reorder or alter list of install callbacks (defaults to included profiles'
   // install hooks) invoked during installation.
   $callbacks = $installer->getInstallCallbacks();
@@ -45,6 +41,8 @@ function standard2_install_tasks(&$install_state) {
  * Implements hook_install_tasks_alter().
  */
 function standard2_install_tasks_alter(&$tasks, $install_state) {
+  $installer = ProfileInstaller::getInstallerForProfile('standard2');
+
   // @todo Wrap this in ProfileInstaller alter function.
   // @todo Give included profiles an opportunity to alter tasks too.
   $tasks['install_profile_modules']['function'] = 'profile_installer_install_modules';

@@ -2,4 +2,8 @@ name = Standard2
 description = Drupal core's standard install profile refactored to use Profile Installes an example
 core = 7.x
 
+; Include other Drupal install profiles included in the code base.
 profiles[] = standard
+
+; Remove unwanted dependencies or conflicting feature modules from included profiles.
+remove_dependencies[] = dblog

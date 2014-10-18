@@ -13,15 +13,21 @@ class ProfileInstaller {
   private $baseprofile_path;
   private $included_profiles;
   private $included_profiles_dependencies;
+  private $included_profiles_dependency_removals;
+  // Note: 'install_profile_modules' is the variable name used by Drupal core.
+  // It's reused here for consistency with core, even though
+  // install_profile_dependencies may seem more intuitive and consistent.
   private $install_profile_modules;
+  private $install_profile_dependency_removals;
   private $install_callbacks;
 
   private function __construct($baseprofile_name) {
     $this->setBaseProfileName($baseprofile_name);
     $this->setBaseProfilePath();
     $this->setIncludedProfiles();
+    // @todo remove setIncludedProfilesDependencies? Still needed?
     $this->setIncludedProfilesDependencies();
-    $this->setInstallProfileModules( $this->getIncludedProfilesDependencies() );
+    $this->setInstallProfileModules();
     $this->setInstallCallbacks();
   }
 
@@ -113,7 +119,6 @@ class ProfileInstaller {
 
   public static function getDependenciesForProfilesIncludedByProfile($baseprofile_name) {
     $installer = new self($baseprofile_name);
-
     return $installer->getIncludedProfilesDependencies();
   }
 
@@ -134,7 +139,40 @@ class ProfileInstaller {
     $this->included_profiles_dependencies = $dependencies;
   }
 
-  public function setInstallProfileModules($modules) {
+  function setIncludedProfilesDependencyRemovals() {
+    $removals = array();
+    foreach ($this->included_profiles as $profile_name) {
+      $additional_removals = self::getAllDependencyRemovalsForProfile($profile_name);
+      $removals = array_unique(array_merge($removals, $additional_removals));
+    }
+    $this->included_profiles_dependency_removals = $removals;
+  }
+
+  function getIncludedProfilesDependencyRemovals() {
+    if (empty($this->included_profiles_dependency_removals)) {
+      $this->setIncludedProfilesDependencyRemovals();
+    }
+    return $this->included_profiles_dependency_removals;
+  }
+
+  function getInstallProfileDependencyRemovals() {
+    if (empty($this->install_profile_dependency_removals)) {
+      $this->setInstallProfileDependencyRemovals();
+    }
+    return $this->install_profile_dependency_removals;
+  }
+
+  function setInstallProfileDependencyRemovals() {
+    $removals = $this->getAllDependencyRemovalsForProfile($this->getBaseProfileName());
+    $this->install_profile_dependency_removals = $removals;
+  }
+
+  public function setInstallProfileModules($modules = array()) {
+    if (empty($modules) || empty($this->install_profile_modules)) {
+      $dependencies = $this->getAllDependenciesForProfile( $this->getBaseProfileName() );
+      $removals = $this->getAllDependencyRemovalsForProfile( $this->getBaseProfileName() );
+      $modules = $this->removeNeedlesFromHaystack($removals, $dependencies);
+    }
     $this->install_profile_modules = $modules;
   }
 
@@ -157,6 +195,21 @@ class ProfileInstaller {
     return $dependencies;
   }
 
+  private static function getAllDependencyRemovalsForProfile($profile_name) {
+    // Get top-level removals for profile.
+    $info_file = self::getInfoFileForProfile($profile_name);
+    $removals = self::getDependencyRemovalsFromInfoFile($info_file);
+
+    // Recurse. Detect included profiles, and get their dependencies.
+    $profile_names = self::getProfileNamesFromInfoFile($info_file);
+    foreach ($profile_names as $profile_name) {
+      $additional_removals = self::getAllDependencyRemovalsForProfile($profile_name);
+      $removals = array_unique(array_merge($removals, $additional_removals));
+    }
+
+    return $removals;
+  }
+
   public static function getInfoFileForProfile($profile_name) {
     $path = self::getPathToProfile($profile_name);
 
@@ -165,8 +218,12 @@ class ProfileInstaller {
 
   public static function getDependenciesFromInfoFile($info_file) {
     $info = drupal_parse_info_file($info_file);
+    return isset($info['dependencies']) ? $info['dependencies'] : array();
+  }
 
-    return $info['dependencies'];
+  public static function getDependencyRemovalsFromInfoFile($info_file) {
+    $info = drupal_parse_info_file($info_file);
+    return isset($info['remove_dependencies']) ? $info['remove_dependencies'] : array();
   }
 
   private function setIncludedProfiles() {
