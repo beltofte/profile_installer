@@ -3,16 +3,19 @@
  * @file
  * Install, update and uninstall functions for the standard2 install profile.
  */
+require_once DRUPAL_ROOT . '/profiles/profile_installer/profile_installer.inc';
 
 /**
  * Implements hook_install().
  *
- * Perform actions to set up the site for this profile.
+ * NOTE: This runs before install hooks from included profiles are invoked by
+ * ProfileInstaller. If you have setup that should be performed after other
+ * profiles complete their setup, add a callback under hook_install_tasks below.
  *
  * @see system_install()
  */
 function standard2_install() {
-  variable_set('site_name', 'Standard2 Demo');
+  variable_set('standard2', 'Hello world!');
 }
 
 /**
@@ -24,16 +27,17 @@ function standard2_install() {
 function standard2_install_tasks(&$install_state) {
   $installer = ProfileInstaller::getInstallerForProfile('standard2');
 
-  $modules = $installer->getIncludedProfilesDependencies();
-  // If there are conflicts among dependencies, those can be negotiated here...
-  $installer->setInstallProfileModules($modules);
+  // Remove specific dependencies from included profiles as needed.
+  $modules = array('dblog');
+  profile_installer_remove_dependencies_from_profile($modules, 'standard2');
 
-  $callbacks = $installer->getInstallCallbacks();
   // Reorder or alter list of install functions to be called during installation.
+  // Reorder or alter list of install functions to be called during installation.
+  $callbacks = $installer->getInstallCallbacks();
   $callbacks = array_merge(array('standard2_reset_blocks' => __FILE__), $callbacks);
   $installer->setInstallCallbacks($callbacks);
 
-  $tasks = $installer->getInstallTasks();
+  $tasks = profile_installer_get_install_tasks('standard2');
   return $tasks;
 }
 
@@ -48,7 +52,7 @@ function standard2_install_tasks_alter(&$tasks, $install_state) {
 
 /**
  * Delete stuff core puts into block table, so standard_install() can configure
- * blocks, that is, make inserts into block without collisions.
+ * blocks, making inserts into block without collisions.
  */
 function standard2_reset_blocks() {
   db_delete('block')->execute();

@@ -3,5 +3,3 @@ description = Drupal core's standard install profile refactored to use Profile I
 core = 7.x
 
 profiles[] = standard
-
-

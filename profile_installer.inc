@@ -6,6 +6,27 @@
 require_once DRUPAL_ROOT . '/profiles/profile_installer/ProfileInstaller.php';
 
 /**
+ * @param string $profile_name
+ *
+ * @return array
+ *   Array of install tasks, @see hook_install_tasks.
+ */
+function profile_installer_get_install_tasks($profile_name) {
+  $installer = ProfileInstaller::getInstallerForProfile($profile_name);
+  return $installer->getInstallTasks();
+}
+
+function profile_installer_remove_dependencies_from_profile(array $modules, $profile_name) {
+  $installer = ProfileInstaller::getInstallerForProfile($profile_name);
+  $dependencies = $installer->getIncludedProfilesDependencies();
+  foreach ($modules as $module) {
+    $key = array_search($module, $dependencies);
+    unset($dependencies[$key]);
+  }
+  $installer->setInstallProfileModules($dependencies);
+}
+
+/**
  * Callback for task to install profiles' dependencies.
  *
  * Core's hook_install_tasks does not support methods of objects, this has to be

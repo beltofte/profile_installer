@@ -21,6 +21,7 @@ class ProfileInstaller {
     $this->setBaseProfilePath();
     $this->setIncludedProfiles();
     $this->setIncludedProfilesDependencies();
+    $this->setInstallProfileModules( $this->getIncludedProfilesDependencies() );
     $this->setInstallCallbacks();
   }
 
