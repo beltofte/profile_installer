@@ -89,6 +89,23 @@ class ProfileInstaller {
     return $tasks;
   }
 
+  function alterInstallConfigureForm($form, $form_state) {
+    // Give included profiles an opportunity to alter install_configure_form.
+    foreach ($this->getIncludedProfiles() as $profile_name) {
+      $path = $this->getPathToProfile($profile_name);
+      $install_file = "{$path}/{$profile_name}.install";
+      $profile_file = "{$path}/{$profile_name}.profile";
+      include_once $install_file;
+      include_once $profile_file;
+      $function = "{$profile_name}_form_install_configure_form_alter";
+      if (function_exists($function)) {
+        $function($form, $form_state);
+      }
+    }
+
+    return $form;
+  }
+
   public function removeInstallProfileModules(array $modules) {
     $dependencies = $this->getInstallProfileModules();
     $dependencies = $this->removeNeedlesFromHaystack($modules, $dependencies);
