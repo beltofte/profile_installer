@@ -3,7 +3,6 @@
  * @file
  * Install, update and uninstall functions for the standard2 install profile.
  */
-require_once DRUPAL_ROOT . '/profiles/profileinstaller/ProfileInstaller.php';
 
 /**
  * Implements hook_install().
@@ -18,6 +17,9 @@ function standard2_install() {
 
 /**
  * Implements hook_install_tasks().
+ *
+ * In addition to any custom tasks you may want to add, set up installer to install
+ * @todo Finish....
  */
 function standard2_install_tasks(&$install_state) {
   $installer = ProfileInstaller::getInstallerForProfile('standard2');
@@ -39,10 +41,9 @@ function standard2_install_tasks(&$install_state) {
  * Implements hook_install_tasks_alter().
  */
 function standard2_install_tasks_alter(&$tasks, $install_state) {
-  // $installer = ProfileInstaller::getInstallerForProfile('standard2');
-
-  $tasks['install_profile_modules']['function'] = 'profileinstaller_install_modules';
-  // $tasks['install_profile_modules']['display name'] = st('Install modules');
+  // @todo Wrap this in ProfileInstaller alter function.
+  // @todo Give included profiles an opportunity to alter tasks too.
+  $tasks['install_profile_modules']['function'] = 'profile_installer_install_modules';
 }
 
 /**
