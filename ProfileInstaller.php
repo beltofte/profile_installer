@@ -73,11 +73,16 @@ class ProfileInstaller {
 
   public function removeInstallProfileModules(array $modules) {
     $dependencies = $this->getInstallProfileModules();
-    foreach ($modules as $module) {
-      $key = array_search($module, $dependencies);
-      unset($dependencies[$key]);
-    }
+    $dependencies = $this->removeNeedlesFromHaystack($modules, $dependencies);
     $this->setInstallProfileModules($dependencies);
+  }
+
+  public function removeNeedlesFromHaystack(array $needles, array $haystack) {
+    foreach ($needles as $needle) {
+      $key = array_search($needle, $haystack);
+      unset($haystack[$key]);
+    }
+    return $haystack;
   }
 
 
