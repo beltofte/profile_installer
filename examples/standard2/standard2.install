@@ -27,17 +27,17 @@ function standard2_install() {
 function standard2_install_tasks(&$install_state) {
   $installer = ProfileInstaller::getInstallerForProfile('standard2');
 
-  // Remove specific dependencies from included profiles as needed.
+  // Remove dependencies declared by included profiles as needed.
   $modules = array('dblog');
-  profile_installer_remove_dependencies_from_profile($modules, 'standard2');
+  $installer->removeInstallProfileModules($modules);
 
-  // Reorder or alter list of install functions to be called during installation.
-  // Reorder or alter list of install functions to be called during installation.
+  // Reorder or alter list of install callbacks (defaults to included profiles'
+  // install hooks) invoked during installation.
   $callbacks = $installer->getInstallCallbacks();
   $callbacks = array_merge(array('standard2_reset_blocks' => __FILE__), $callbacks);
   $installer->setInstallCallbacks($callbacks);
 
-  $tasks = profile_installer_get_install_tasks('standard2');
+  $tasks = $installer->getInstallTasks();
   return $tasks;
 }
 

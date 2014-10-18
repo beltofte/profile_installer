@@ -71,6 +71,15 @@ class ProfileInstaller {
     // @TODO
   }
 
+  public function removeInstallProfileModules(array $modules) {
+    $dependencies = $this->getInstallProfileModules();
+    foreach ($modules as $module) {
+      $key = array_search($module, $dependencies);
+      unset($dependencies[$key]);
+    }
+    $this->setInstallProfileModules($dependencies);
+  }
+
 
   /**
    * Getters and setters. ======================================================
