@@ -42,10 +42,7 @@ function standard2_install_tasks(&$install_state) {
  */
 function standard2_install_tasks_alter(&$tasks, $install_state) {
   $installer = ProfileInstaller::getInstallerForProfile('standard2');
-
-  // @todo Wrap this in ProfileInstaller alter function.
-  // @todo Give included profiles an opportunity to alter tasks too.
-  $tasks['install_profile_modules']['function'] = 'profile_installer_install_modules';
+  $tasks = $installer->alterInstallTasks($tasks, $install_state);
 }
 
 /**

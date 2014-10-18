@@ -69,8 +69,24 @@ class ProfileInstaller {
     );
   }
 
-  public static function alterTasksForProfile($profile_name, $install_state) {
-    // @TODO
+  public function alterInstallTasks($tasks, $install_state) {
+    // Use our own handler for installing profile's modules.
+    $tasks['install_profile_modules']['function'] = 'profile_installer_install_modules';
+
+    // Give included profiles an opportunity to alter tasks.
+    foreach ($this->getIncludedProfiles() as $profile_name) {
+      $path = $this->getPathToProfile($profile_name);
+      $install_file = "{$path}/{$profile_name}.install";
+      $profile_file = "{$path}/{$profile_name}.profile";
+      include_once $install_file;
+      include_once $profile_file;
+      $function = "{$profile_name}_install_tasks_alter";
+      if (function_exists($function)) {
+        $function($tasks, $install_state);
+      }
+    }
+
+    return $tasks;
   }
 
   public function removeInstallProfileModules(array $modules) {
