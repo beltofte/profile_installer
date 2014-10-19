@@ -1,0 +1,39 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the standard3 install profile.
+ */
+require_once DRUPAL_ROOT . '/profiles/profile_installer/profile_installer.inc';
+
+/**
+ * Implements hook_install().
+ *
+ * NOTE: This runs before install hooks from included profiles are invoked by
+ * ProfileInstaller. If you have setup that should be performed after other
+ * profiles complete their setup, add a callback under hook_install_tasks below.
+ *
+ * @see system_install()
+ */
+function standard3_install() {
+  variable_set('standard3', 'Hello world!');
+}
+
+/**
+ * Implements hook_install_tasks().
+ *
+ * In addition to any custom tasks you may want to add, set up installer to install
+ * @todo Finish....
+ */
+function standard3_install_tasks(&$install_state) {
+  $installer = ProfileInstaller::getInstallerForProfile('standard3');
+  $tasks = $installer->getInstallTasks();
+  return $tasks;
+}
+
+/**
+ * Implements hook_install_tasks_alter().
+ */
+function standard3_install_tasks_alter(&$tasks, $install_state) {
+  $installer = ProfileInstaller::getInstallerForProfile('standard3');
+  $tasks = $installer->alterInstallTasks($tasks, $install_state);
+}

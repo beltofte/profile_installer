@@ -18,6 +18,8 @@ class ProfileInstaller {
   private $install_profile_modules;
   private $install_profile_dependency_removals;
   private $install_callbacks;
+  private $install_tasks_alter_invocations;
+  private $install_tasks_alters_status;
 
   private function __construct($baseprofile_name) {
     $this->setBaseProfileName($baseprofile_name);
@@ -73,20 +75,84 @@ class ProfileInstaller {
     // Use our own handler for installing profile's modules.
     $tasks['install_profile_modules']['function'] = 'profile_installer_install_modules';
 
-    // Give included profiles an opportunity to alter tasks.
-    foreach ($this->getIncludedProfiles() as $profile_name) {
-      $path = $this->getPathToProfile($profile_name);
-      $install_file = "{$path}/{$profile_name}.install";
-      $profile_file = "{$path}/{$profile_name}.profile";
-      include_once $install_file;
-      include_once $profile_file;
-      $function = "{$profile_name}_install_tasks_alter";
-      if (function_exists($function)) {
+    // Keep track of hook invocations.
+    if ($this->isNewInstallState($install_state)) {
+      $this->setUpNewInstallTaskAlterInvocationsForInstallState($install_state);
+    }
+
+    // Give included profiles an opportunity to alter tasks (once per install
+    // state so we don't get trapped in a loop).
+    foreach ($this->getInstallTasksAlterInvocationsForInstallState($install_state) as $function => $info) {
+      if (!$info['invoked']) {
+        $this->updateInvocationStatusToInvokedForInstallState($function, $install_state);
+        include_once $info['file'];
         $function($tasks, $install_state);
       }
     }
 
     return $tasks;
+  }
+
+  private function isNewInstallState($install_state) {
+    $key = $this->getKeyForInstallState($install_state);
+    $is_new = !isset($this->install_tasks_alters_status[$key]);
+    return $is_new;
+  }
+
+  private function setUpNewInstallTaskAlterInvocationsForInstallState(array $install_state) {
+    $invocations = $this->getInstallTasksAlterInvocations();
+    $key = $this->getKeyForInstallState($install_state);
+    foreach ($invocations as $function => $file) {
+      $this->install_tasks_alters_status[$key][$function]['function'] = $function;
+      $this->install_tasks_alters_status[$key][$function]['file'] = $file;
+      $this->install_tasks_alters_status[$key][$function]['invoked'] = FALSE;
+    }
+  }
+
+  private function updateInvocationStatusToInvokedForInstallState($function, $install_state) {
+    $key = $this->getKeyForInstallState($install_state);
+    $this->install_tasks_alters_status[$key][$function]['invoked'] = TRUE;
+  }
+
+  private function getInstallTasksAlterInvocationsForInstallState($install_state) {
+    $key = $this->getKeyForInstallState($install_state);
+    return $this->install_tasks_alters_status[$key];
+  }
+
+  private function getInstallTasksAlterInvocations() {
+    if (empty($this->install_tasks_alter_invocations)) {
+      $this->setInstallTasksAlterInvocations();
+    }
+
+    return $this->install_tasks_alter_invocations;
+  }
+
+  private function setInstallTasksAlterInvocations() {
+    $this->install_tasks_alter_invocations = array();
+    foreach ($this->getIncludedProfiles() as $profile_name) {
+      $function = "{$profile_name}_install_tasks_alter";
+      $path = $this->getPathToProfile($profile_name);
+      $install_file = "{$path}/{$profile_name}.install";
+      $profile_file = "{$path}/{$profile_name}.profile";
+
+      include_once $install_file;
+      if (function_exists($function)) {
+        $this->install_tasks_alter_invocations[$function] = $install_file;
+      }
+
+      include_once $profile_file;
+      if (function_exists($function)) {
+        $this->install_tasks_alter_invocations[$function] = $profile_file;
+      }
+      else {
+        // If function doesn't exist in .install or .profile, skip.
+        continue;
+      }
+    }
+  }
+
+  private static function getKeyForInstallState($install_state) {
+    return md5(serialize($install_state));
   }
 
   function alterInstallConfigureForm($form, $form_state) {

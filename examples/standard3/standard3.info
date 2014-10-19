@@ -1,0 +1,13 @@
+name = Standard3
+description = Drupal core's standard install profile refactored to use Profile Installes an example
+core = 7.x
+
+; Include other Drupal install profiles included in the code base.
+profiles[] = standard2
+profiles[] = minimal
+
+; Remove unwanted dependencies or conflicting feature modules from included profiles.
+remove_dependencies[] = dblog
+
+; Standard3 enables some stuff that's not actually included in the core standard profile...
+dependencies[] = contact
