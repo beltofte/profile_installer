@@ -18,7 +18,7 @@ class ProfileInstaller {
   private $install_profile_modules;
   private $install_profile_dependency_removals;
   private $install_callbacks;
-  private $install_tasks_alter_invocations;
+  private $install_tasks_alter_implementations;
   private $install_tasks_alters_status;
 
   private function __construct($baseprofile_name) {
@@ -77,12 +77,12 @@ class ProfileInstaller {
 
     // Keep track of hook invocations.
     if ($this->isNewInstallState($install_state)) {
-      $this->setUpNewInstallTaskAlterInvocationsForInstallState($install_state);
+      $this->setUpNewInstallTaskAlterImplementationsForInstallState($install_state);
     }
 
     // Give included profiles an opportunity to alter tasks (once per install
     // state so we don't get trapped in a loop).
-    foreach ($this->getInstallTasksAlterInvocationsForInstallState($install_state) as $function => $info) {
+    foreach ($this->getInstallTasksAlterImplementationsForInstallState($install_state) as $function => $info) {
       if (!$info['invoked']) {
         $this->updateInvocationStatusToInvokedForInstallState($function, $install_state);
         include_once $info['file'];
@@ -99,10 +99,10 @@ class ProfileInstaller {
     return $is_new;
   }
 
-  private function setUpNewInstallTaskAlterInvocationsForInstallState(array $install_state) {
-    $invocations = $this->getInstallTasksAlterInvocations();
+  private function setUpNewInstallTaskAlterImplementationsForInstallState(array $install_state) {
+    $implementations = $this->getInstallTasksAlterImplementations();
     $key = $this->getKeyForInstallState($install_state);
-    foreach ($invocations as $function => $file) {
+    foreach ($implementations as $function => $file) {
       $this->install_tasks_alters_status[$key][$function]['function'] = $function;
       $this->install_tasks_alters_status[$key][$function]['file'] = $file;
       $this->install_tasks_alters_status[$key][$function]['invoked'] = FALSE;
@@ -114,21 +114,21 @@ class ProfileInstaller {
     $this->install_tasks_alters_status[$key][$function]['invoked'] = TRUE;
   }
 
-  private function getInstallTasksAlterInvocationsForInstallState($install_state) {
+  private function getInstallTasksAlterImplementationsForInstallState($install_state) {
     $key = $this->getKeyForInstallState($install_state);
     return $this->install_tasks_alters_status[$key];
   }
 
-  private function getInstallTasksAlterInvocations() {
-    if (empty($this->install_tasks_alter_invocations)) {
-      $this->setInstallTasksAlterInvocations();
+  private function getInstallTasksAlterImplementations() {
+    if (empty($this->install_tasks_alter_implementations)) {
+      $this->setInstallTasksAlterImplementations();
     }
 
-    return $this->install_tasks_alter_invocations;
+    return $this->install_tasks_alter_implementations;
   }
 
-  private function setInstallTasksAlterInvocations() {
-    $this->install_tasks_alter_invocations = array();
+  private function setInstallTasksAlterImplementations() {
+    $this->install_tasks_alter_implementations = array();
     foreach ($this->getIncludedProfiles() as $profile_name) {
       $function = "{$profile_name}_install_tasks_alter";
       $path = $this->getPathToProfile($profile_name);
@@ -137,12 +137,12 @@ class ProfileInstaller {
 
       include_once $install_file;
       if (function_exists($function)) {
-        $this->install_tasks_alter_invocations[$function] = $install_file;
+        $this->install_tasks_alter_implementations[$function] = $install_file;
       }
 
       include_once $profile_file;
       if (function_exists($function)) {
-        $this->install_tasks_alter_invocations[$function] = $profile_file;
+        $this->install_tasks_alter_implementations[$function] = $profile_file;
       }
       else {
         // If function doesn't exist in .install or .profile, skip.
