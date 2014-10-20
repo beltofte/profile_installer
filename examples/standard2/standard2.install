@@ -33,7 +33,9 @@ function standard2_install_tasks(&$install_state) {
   $callbacks = array_merge(array('standard2_reset_blocks' => __FILE__), $callbacks);
   $installer->setInstallCallbacks($callbacks);
 
-  $tasks = $installer->getInstallTasks();
+  $tasks = $installer->getInstallTasks($install_state);
+  $install_state = $installer->getInstallState();
+
   return $tasks;
 }
 

@@ -26,7 +26,8 @@ function standard3_install() {
  */
 function standard3_install_tasks(&$install_state) {
   $installer = ProfileInstaller::getInstallerForProfile('standard3');
-  $tasks = $installer->getInstallTasks();
+  $tasks = $installer->getInstallTasks($install_state);
+  $install_state = $installer->getInstallState();
   return $tasks;
 }
 

@@ -20,10 +20,11 @@ class ProfileInstaller {
   private $install_profile_modules;
   private $install_profile_dependency_removals;
   private $install_callbacks;
-  private $install_tasks_alter_implementations;
-  private $install_tasks_alters_status;
-  private $install_configure_form_alter_implementations;
-  private $install_configure_form_alters_status;
+  private $install_state;
+  private $install_tasks_alter_implementations; // @todo Remove.
+  private $install_tasks_alters_status; // @todo Remove.
+  private $install_configure_form_alter_implementations; // @todo remove.
+  private $install_configure_form_alters_status;  // @todo remove.
 
   private function __construct($baseprofile_name) {
     $this->setBaseProfileName($baseprofile_name);
@@ -74,23 +75,40 @@ class ProfileInstaller {
       ),
     );
 
-    // CONTINUE HERE. Unfinished.
-    // [ ] standard3 is not invoking standard2's tasks to alter callbacks.
-    // [ ] we need install_state param
-    // [ ] careful of loop trap. implement something like we did for alter hooks.
-    $more_tasks = array();
-    foreach ($this->getIncludedProfiles() as $profile_name) {
-      $function = "{$profile_name}_install_tasks";
-      $install_file = $this->getPathToProfileInstallFile($profile_name);
-      include_once $install_file;
-      if (function_exists($function)) {
-        $more_tasks = $function();
+    // Keep track of state. Only invoke hooks once per state, so we don't get
+    // trapped in a loop.
+    $hook = 'hook_install_tasks';
+    if ($this->isNewStateForHookInvocations($install_state, $hook)) {
+      $this->setUpNewHookInvocationsForState($hook, $install_state);
+    }
+
+    // Give included profiles an opportunity to add tasks.
+    $invocations = $this->getHookInvocationsForState($hook, $install_state);
+    foreach ($invocations as $invocation) {
+      if ($this->hookInvocationHasNotBeenCalled($invocation)) {
+        $this->updateInvocationToInvoked($invocation);
+        include_once $this->getFileWithHookImplementation($invocation);
+        $function = $invocation['function'];
+        $more_tasks = $function($install_state);
+        $tasks = array_merge($tasks, $more_tasks);
       }
     }
 
-    $tasks = array_merge($tasks, $more_tasks);
+    // Store this so it can be returned in case anyone alters it, when passed by
+    // reference in hook_install_tasks;
+    $this->install_state = $install_state;
 
     return $tasks;
+  }
+
+  /**
+   * WARNING: This should only be called by hook_install_tasks. That's the only
+   * place we're tracking current install_state.
+   *
+   * @return array
+   */
+  public function getInstallState() {
+    return $this->install_state;
   }
 
   public function alterInstallTasks($tasks, $install_state) {
@@ -116,10 +134,41 @@ class ProfileInstaller {
     return $tasks;
   }
 
+  /**
+   * Checks whether hooks have been registered to be invoked for this state yet.
+   *
+   * @param array $state
+   *   This can be $form_state or $install_state.
+   *
+   * @return bool
+   */
+  private function isNewStateForHookInvocations(array $state, $hook) {
+    $key = $this->getKeyForArray($state);
+    $is_new = !isset($this->hook_invocations[$hook][$key]);
+    return $is_new;
+  }
+
   private function isNewInstallState($install_state) {
     $key = $this->getKeyForInstallState($install_state);
     $is_new = !isset($this->install_tasks_alters_status[$key]);
     return $is_new;
+  }
+
+  private function setUpNewHookInvocationsForState($hook, array $state) {
+    $implementations = $this->getHookImplementations($hook);
+    $key = $this->getKeyForArray($state);
+
+    if (isset($this->hook_invocations[$hook][$key])) {
+      throw new Exception ("{$hook} invocations this install_state/form_state have already been set up.");
+    }
+
+    foreach ($implementations as $function => $file) {
+      $this->hook_invocations[$hook][$key][$function]['function'] = $function;
+      $this->hook_invocations[$hook][$key][$function]['file'] = $file;
+      $this->hook_invocations[$hook][$key][$function]['invoked'] = FALSE;
+      $this->hook_invocations[$hook][$key][$function]['key'] = $key;
+      $this->hook_invocations[$hook][$key][$function]['hook'] = 'hook_install_tasks_alter';
+    }
   }
 
   private function setUpNewInstallTaskAlterImplementationsForInstallState(array $install_state) {
@@ -137,6 +186,31 @@ class ProfileInstaller {
       $this->install_tasks_alters_status[$key][$function]['key'] = $key;
       $this->install_tasks_alters_status[$key][$function]['hook'] = 'hook_install_tasks_alter';
     }
+  }
+
+  private function hookInvocationHasNotBeenCalled($invocation) {
+    $hook = $invocation['hook'];
+    $key = $invocation['key'];
+    $function = $invocation['function'];
+    if (!empty($this->hook_invocations[$hook][$key][$function])) {
+      $has_been_invoked = $this->hook_invocations[$hook][$key][$function]['invoked'];
+      return !$has_been_invoked;
+    }
+    else {
+      throw new Exception('Something went wrong. $invocation does not include the info needed.');
+    }
+  }
+
+  private function updateInvocationToInvoked(array $invocation) {
+    $key = $invocation['key'];
+    $function = $invocation['function'];
+    $hook = $invocation['hook'];
+    $this->hook_invocations[$hook][$key][$function]['invoked'] = TRUE;
+  }
+
+  private function getHookImplementationForProfile($hook, $profile_name) {
+    $suffix = substr($hook, 4);
+    return "{$profile_name}_{$suffix}";
   }
 
   private function hookImplementationHasNotBeenInvoked($implementation_info) {
@@ -161,6 +235,12 @@ class ProfileInstaller {
 
   private function getFileWithHookImplementation($implementation_info) {
     return $implementation_info['file'];
+  }
+
+  private function getHookInvocationsForState($hook, array $state) {
+    $key = $this->getKeyForArray($state);
+    $invocations = !empty($this->hook_invocations[$hook][$key]) ? $this->hook_invocations[$hook][$key] : array();
+    return $invocations;
   }
 
   private function getInstallTasksAlterImplementationsForInstallState(array $install_state) {
@@ -190,10 +270,7 @@ class ProfileInstaller {
 
     foreach ($supported_hooks as $hook) {
       foreach ($this->getIncludedProfiles() as $profile_name) {
-
-        $suffix = substr($hook, 4);
-        $function = "{$profile_name}_{$suffix}";
-
+        $function = $this->getHookImplementationForProfile($hook, $profile_name);
         if ($file = $this->findFunctionInProfile($function, $profile_name)) {
           $this->hook_implementations[$hook][$function] = $file;
         }
