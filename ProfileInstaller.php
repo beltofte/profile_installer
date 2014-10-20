@@ -20,6 +20,8 @@ class ProfileInstaller {
   private $install_callbacks;
   private $install_tasks_alter_implementations;
   private $install_tasks_alters_status;
+  private $install_configure_form_alter_implementations;
+  private $install_configure_form_alters_status;
 
   private function __construct($baseprofile_name) {
     $this->setBaseProfileName($baseprofile_name);
@@ -83,10 +85,10 @@ class ProfileInstaller {
     // Give included profiles an opportunity to alter tasks (once per install
     // state so we don't get trapped in a loop).
     $implementations = $this->getInstallTasksAlterImplementationsForInstallState($install_state);
-    foreach ($implementations as $function => $info) {
-      if (!$info['invoked']) {
-        $this->updateInvocationStatusToInvokedForInstallState($function, $install_state);
-        include_once $info['file'];
+    foreach ($implementations as $function => $implementation_info) {
+      if ($this->hookImplementationHasNotBeenInvoked($implementation_info)) {
+        $this->updateHookImplementationStatusToInvoked($implementation_info);
+        include_once $this->getFileWithHookImplementation($implementation_info);
         $function($tasks, $install_state);
       }
     }
@@ -103,19 +105,45 @@ class ProfileInstaller {
   private function setUpNewInstallTaskAlterImplementationsForInstallState(array $install_state) {
     $implementations = $this->getInstallTasksAlterImplementations();
     $key = $this->getKeyForInstallState($install_state);
+
+    if (isset($this->install_tasks_alters_status[$key])) {
+      throw new Exception ('Not new. Alters for this install_state have already been set up.');
+    }
+
     foreach ($implementations as $function => $file) {
       $this->install_tasks_alters_status[$key][$function]['function'] = $function;
       $this->install_tasks_alters_status[$key][$function]['file'] = $file;
       $this->install_tasks_alters_status[$key][$function]['invoked'] = FALSE;
+      $this->install_tasks_alters_status[$key][$function]['key'] = $key;
+      $this->install_tasks_alters_status[$key][$function]['hook'] = 'hook_install_tasks_alter';
     }
   }
 
-  private function updateInvocationStatusToInvokedForInstallState($function, $install_state) {
-    $key = $this->getKeyForInstallState($install_state);
-    $this->install_tasks_alters_status[$key][$function]['invoked'] = TRUE;
+  private function hookImplementationHasNotBeenInvoked($implementation_info) {
+    return $implementation_info['invoked'];
   }
 
-  private function getInstallTasksAlterImplementationsForInstallState($install_state) {
+  private function updateHookImplementationStatusToInvoked($implementation_info) {
+    $key = $implementation_info['key'];
+    $function = $implementation_info['function'];
+    $hook = $implementation_info['hook'];
+
+    if ($hook == 'hook_install_tasks_alter') {
+      $property = 'install_tasks_alters_status';
+    }
+
+    if ($hook == 'hook_form_install_configure_form_alter') {
+      $property = 'install_configure_form_alters_status';
+    }
+
+    $this->{$property}[$key][$function]['invoked'] = TRUE;
+  }
+
+  private function getFileWithHookImplementation($implementation_info) {
+    return $implementation_info['file'];
+  }
+
+  private function getInstallTasksAlterImplementationsForInstallState(array $install_state) {
     $key = $this->getKeyForInstallState($install_state);
     $implementations = isset($this->install_tasks_alters_status[$key]) ? $this->install_tasks_alters_status[$key] : array();
     return $implementations;
@@ -131,47 +159,97 @@ class ProfileInstaller {
 
   private function setInstallTasksAlterImplementations() {
     $this->install_tasks_alter_implementations = array();
+
     foreach ($this->getIncludedProfiles() as $profile_name) {
       $function = "{$profile_name}_install_tasks_alter";
-      $path = $this->getPathToProfile($profile_name);
-      $install_file = "{$path}/{$profile_name}.install";
-      $profile_file = "{$path}/{$profile_name}.profile";
 
-      include_once $install_file;
-      if (function_exists($function)) {
-        $this->install_tasks_alter_implementations[$function] = $install_file;
+      if ($file = $this->findFunctionInProfile($function, $profile_name)) {
+        $this->install_tasks_alter_implementations[$function] = $file;
       }
 
-      include_once $profile_file;
-      if (function_exists($function)) {
-        $this->install_tasks_alter_implementations[$function] = $profile_file;
-      }
-      else {
-        // If function doesn't exist in .install or .profile, skip.
-        continue;
-      }
     }
   }
 
-  private static function getKeyForInstallState($install_state) {
-    return md5(serialize($install_state));
+  private static function getKeyForInstallState(array $install_state) {
+    return self::getKeyForArray($install_state);
   }
 
   function alterInstallConfigureForm($form, $form_state) {
-    // Give included profiles an opportunity to alter install_configure_form.
-    foreach ($this->getIncludedProfiles() as $profile_name) {
-      $path = $this->getPathToProfile($profile_name);
-      $install_file = "{$path}/{$profile_name}.install";
-      $profile_file = "{$path}/{$profile_name}.profile";
-      include_once $install_file;
-      include_once $profile_file;
-      $function = "{$profile_name}_form_install_configure_form_alter";
-      if (function_exists($function)) {
+    // Keep track of hook invocations.
+    if ($this->isNewFormState($form_state)) {
+      $this->setUpNewInstallConfigureFormAlterImplementationsForFormState($form_state);
+    }
+
+    // Give included profiles an opportunity to alter install_configure_form
+    // once per form state so we don't get trapped in a loop.
+    $implementations = $this->getInstallConfigureFormAlterImplementationsForFormState($form_state);
+    foreach ($implementations as $function => $implementation_info) {
+      if ($this->hookImplementationHasNotBeenInvoked($implementation_info)) {
+        $this->updateHookImplementationStatusToInvoked($function, $form_state);
+        include_once $this->getFileWithHookImplementation($implementation_info);
         $function($form, $form_state);
       }
     }
 
     return $form;
+  }
+
+  private function isNewFormState(array $form_state) {
+    $key = $this->getKeyForFormState($form_state);
+    $is_new = !isset($this->install_configure_form_alters_status[$key]);
+    return $is_new;
+  }
+
+  private function setUpNewInstallConfigureFormAlterImplementationsForFormState(array $form_state) {
+    $implementations = $this->getInstallConfigureFormAlterImplementations();
+    $key = $this->getKeyForFormState($form_state);
+
+    if (isset($this->install_configure_form_alters_status[$key])) {
+      throw new Exception ('Not new. Alters for this form_state have already been set up.');
+    }
+
+    foreach ($implementations as $function => $file) {
+      $this->install_configure_form_alters_status[$key][$function]['function'] = $function;
+      $this->install_configure_form_alters_status[$key][$function]['file'] = $file;
+      $this->install_configure_form_alters_status[$key][$function]['invoked'] = FALSE;
+      $this->install_configure_form_alters_status[$key][$function]['key'] = $key;
+      $this->install_configure_form_alters_status[$key][$function]['hook'] = 'hook_form_install_configure_form_alter';
+    }
+  }
+
+  private function getInstallConfigureFormAlterImplementations() {
+    if (empty($this->install_configure_form_alter_implementations)) {
+      $this->setInstallConfigureFormAlterImplementations();
+    }
+
+    return $this->install_configure_form_alter_implementations;
+  }
+
+  private function setInstallConfigureFormAlterImplementations() {
+    $this->install_configure_form_alter_implementations = array();
+
+    foreach ($this->getIncludedProfiles() as $profile_name) {
+      $function = "{$profile_name}_form_install_configure_form_alter";
+
+      if ($file = $this->findFunctionInProfile($function, $profile_name)) {
+        $this->install_tasks_alter_implementations[$function] = $file;
+      }
+
+    }
+  }
+
+  private function getInstallConfigureFormAlterImplementationsForFormState(array $form_state) {
+    $key = $this->getKeyForFormState($form_state);
+    $implementations = isset($this->install_configure_form_alters_status[$key]) ? $this->install_configure_form_alters_status[$key] : array();
+    return $implementations;
+  }
+
+  private static function getKeyForFormState(array $form_state) {
+    return self::getKeyForArray($form_state);
+  }
+
+  private static function getKeyForArray(array $array) {
+    return md5(serialize($array));
   }
 
   public function removeInstallProfileModules(array $modules) {
@@ -188,6 +266,22 @@ class ProfileInstaller {
     return $haystack;
   }
 
+  private function findFunctionInProfile($function, $profile_name) {
+    $install_file = $this->getPathToProfileInstallFile($profile_name);
+    $profile_file = $this->getPathToProfileProfileFile($profile_name);
+
+    include_once $install_file;
+    if (function_exists($function)) {
+      return $install_file;
+    }
+
+    include_once $profile_file;
+    if (function_exists($function)) {
+      return $profile_file;
+    }
+
+    return FALSE;
+  }
 
   /**
    * Getters and setters. ======================================================
@@ -316,6 +410,14 @@ class ProfileInstaller {
 
   public static function getPathToProfile($profile_name) {
     return DRUPAL_ROOT . "/profiles/{$profile_name}";
+  }
+
+  public static function getPathToProfileInstallFile($profile_name) {
+    return self::getPathToProfile($profile_name) . "/{$profile_name}.install";
+  }
+
+  public static function getPathToProfileProfileFile($profile_name) {
+    return self::getPathToProfile($profile_name) . "/{$profile_name}.profile";
   }
 
   public function getBaseProfileName() {
