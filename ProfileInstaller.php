@@ -82,7 +82,8 @@ class ProfileInstaller {
 
     // Give included profiles an opportunity to alter tasks (once per install
     // state so we don't get trapped in a loop).
-    foreach ($this->getInstallTasksAlterImplementationsForInstallState($install_state) as $function => $info) {
+    $implementations = $this->getInstallTasksAlterImplementationsForInstallState($install_state);
+    foreach ($implementations as $function => $info) {
       if (!$info['invoked']) {
         $this->updateInvocationStatusToInvokedForInstallState($function, $install_state);
         include_once $info['file'];
@@ -116,7 +117,8 @@ class ProfileInstaller {
 
   private function getInstallTasksAlterImplementationsForInstallState($install_state) {
     $key = $this->getKeyForInstallState($install_state);
-    return $this->install_tasks_alters_status[$key];
+    $implementations = isset($this->install_tasks_alters_status[$key]) ? $this->install_tasks_alters_status[$key] : array();
+    return $implementations;
   }
 
   private function getInstallTasksAlterImplementations() {
