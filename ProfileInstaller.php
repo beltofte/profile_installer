@@ -11,6 +11,8 @@ class ProfileInstaller {
 
   private $baseprofile_name;
   private $baseprofile_path;
+  private $hook_implementations;
+  private $hook_invocations;
   private $included_profiles;
   // Note: 'install_profile_modules' is the variable name used by Drupal core.
   // It's reused here for consistency with core, even though
@@ -64,13 +66,31 @@ class ProfileInstaller {
     return $exists;
   }
 
-  public function getInstallTasks() {
-    return array(
+  public function getInstallTasks(array $install_state) {
+    $tasks = array(
       'profile_installer_install_profiles' => array(
         'display_name' => st('Install profiles'),
         'type' => 'normal',
       ),
     );
+
+    // CONTINUE HERE. Unfinished.
+    // [ ] standard3 is not invoking standard2's tasks to alter callbacks.
+    // [ ] we need install_state param
+    // [ ] careful of loop trap. implement something like we did for alter hooks.
+    $more_tasks = array();
+    foreach ($this->getIncludedProfiles() as $profile_name) {
+      $function = "{$profile_name}_install_tasks";
+      $install_file = $this->getPathToProfileInstallFile($profile_name);
+      include_once $install_file;
+      if (function_exists($function)) {
+        $more_tasks = $function();
+      }
+    }
+
+    $tasks = array_merge($tasks, $more_tasks);
+
+    return $tasks;
   }
 
   public function alterInstallTasks($tasks, $install_state) {
@@ -147,6 +167,47 @@ class ProfileInstaller {
     $key = $this->getKeyForInstallState($install_state);
     $implementations = isset($this->install_tasks_alters_status[$key]) ? $this->install_tasks_alters_status[$key] : array();
     return $implementations;
+  }
+
+  private function getHookImplementations($hook) {
+    $implementations = array();
+    if (empty($this->hook_implementations)) {
+      $this->setHookImplementations();
+    }
+
+    if (!empty($this->hook_implementations[$hook])) {
+      foreach ($this->hook_implementations[$hook] as $function => $file) {
+        $implementations[$function] = $file;
+      }
+    }
+
+    return $implementations;
+  }
+
+  private function setHookImplementations() {
+    $this->hook_implementations = array();
+    $supported_hooks = $this->getSupportedHooks();
+
+    foreach ($supported_hooks as $hook) {
+      foreach ($this->getIncludedProfiles() as $profile_name) {
+
+        $suffix = substr($hook, 4);
+        $function = "{$profile_name}_{$suffix}";
+
+        if ($file = $this->findFunctionInProfile($function, $profile_name)) {
+          $this->hook_implementations[$hook][$function] = $file;
+        }
+
+      }
+    }
+  }
+
+  private static function getSupportedHooks() {
+    return array(
+      'hook_install_tasks',
+      'hook_install_tasks_alter',
+      'hook_form_install_configure_form_alter',
+    );
   }
 
   private function getInstallTasksAlterImplementations() {
@@ -232,7 +293,7 @@ class ProfileInstaller {
       $function = "{$profile_name}_form_install_configure_form_alter";
 
       if ($file = $this->findFunctionInProfile($function, $profile_name)) {
-        $this->install_tasks_alter_implementations[$function] = $file;
+        $this->install_configure_form_alter_implementations[$function] = $file;
       }
 
     }
