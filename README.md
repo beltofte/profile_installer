@@ -19,25 +19,25 @@ Here's the checklist of features currently envisioned for a feature-complete
 7.x-1.0.0 release:
 
  Supports:
- [x] profiles[] in info file
- [x] remove_dependencies[] in info file
- [x] hook_install
- [ ] hook_install_tasks
- [x] hook_install_tasks_alter
- [x] hook_form_install_configure_form_alter
- [ ] hook_update_N
- [ ] auto-generate .install and .profile files for info-file-only profiles. Use
-     Features module's trick to declare necessary hooks like this: 
-     ([original](http://cgit.drupalcode.org/features/tree/includes/features.ctools.inc?id=0f77db7a&h=7.x-1.x),
-     or [updated
-     approach](http://cgit.drupalcode.org/features/tree/includes/features.ctools.inc?id=9f4ecc7&h=7.x-2.x)
+ - [x] profiles[] in info file
+ - [x] remove_dependencies[] in info file
+ - [x] hook_install
+ - [ ] hook_install_tasks
+ - [x] hook_install_tasks_alter
+ - [x] hook_form_install_configure_form_alter
+ - [ ] hook_update_N
+ - [ ] auto-generate .install and .profile files for info-file-only profiles. Use
+       Features module's trick to declare necessary hooks like this: 
+       ([original](http://cgit.drupalcode.org/features/tree/includes/features.ctools.inc?id=0f77db7a&h=7.x-1.x),
+       or [updated
+       approach](http://cgit.drupalcode.org/features/tree/includes/features.ctools.inc?id=9f4ecc7&h=7.x-2.x)
 
  Utilities:
- [ ] `drush profile-installer-list-dependencies`, list all the dependencies for a profile
- [ ] `drush profile-installer-check-dependencies`, check what's enabled/disabled
-      compared to profile's dependencies, report what's amiss
- [ ] `drush profile-installer-enforce-dependencies`, disable/enable modules to
-      enforce consistent profile state with dependencies declared in code
+ - [ ] `drush profile-installer-list-dependencies`, list all the dependencies for a profile
+ - [ ] `drush profile-installer-check-dependencies`, check what's enabled/disabled
+        compared to profile's dependencies, report what's amiss
+ - [ ] `drush profile-installer-enforce-dependencies`, disable/enable modules to
+        enforce consistent profile state with dependencies declared in code
 
 Usage
 -----
@@ -96,7 +96,7 @@ dependencies (and removed dependencies):
 For profiles with additional customizations to install tasks or the install
 configure form, add this to your install file:
 
-```
+```php
   /**
    * Implements hook_install_tasks().
    */
@@ -110,7 +110,7 @@ configure form, add this to your install file:
 
 And add this to your profile file:
 
-```
+```php
   require_once DRUPAL_ROOT . '/profiles/profile_installer/profile_installer.inc';
 
   /**
