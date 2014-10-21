@@ -18,7 +18,8 @@ Tests (e.g. for included example profiles) and pull requests are welcome.
 Here's the checklist of features currently envisioned for a feature-complete
 7.x-1.0.0 release:
 
- Supports:
+Supports:
+
  - [x] profiles[] in info file
  - [x] remove_dependencies[] in info file
  - [x] hook_install
@@ -32,7 +33,8 @@ Here's the checklist of features currently envisioned for a feature-complete
        or [updated
        approach](http://cgit.drupalcode.org/features/tree/includes/features.ctools.inc?id=9f4ecc7&h=7.x-2.x)
 
- Utilities:
+Utilities:
+
  - [ ] `drush profile-installer-list-dependencies`, list all the dependencies for a profile
  - [ ] `drush profile-installer-check-dependencies`, check what's enabled/disabled
         compared to profile's dependencies, report what's amiss
