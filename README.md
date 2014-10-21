@@ -1,6 +1,11 @@
 Profile Installer
 =================
 
+ - [Overview](#Overview)
+ - [Proof of concept](#Proof of concept)
+ - [Usage](#Usage)
+ - [Glue](#Glue)
+
 Overview
 --------
 
