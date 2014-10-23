@@ -21,8 +21,8 @@ class ProfileInstaller {
   private $install_profile_dependency_removals;
   private $install_callbacks;
   private $install_state;
-  private $install_tasks_alter_implementations; // @todo Remove.
-  private $install_tasks_alters_status; // @todo Remove.
+  // private $install_tasks_alter_implementations; // @todo Remove. REMOVE
+  // private $install_tasks_alters_status; // @todo Remove. REMOVE
   private $install_configure_form_alter_implementations; // @todo remove.
   private $install_configure_form_alters_status;  // @todo remove.
 
@@ -116,13 +116,13 @@ class ProfileInstaller {
     $tasks['install_profile_modules']['function'] = 'profile_installer_install_modules';
 
     // Keep track of hook invocations.
-    if ($this->isNewInstallState($install_state)) {
-      $this->setUpNewInstallTaskAlterImplementationsForInstallState($install_state);
+    if ($this->isNewStateForHookInvocations($install_state, 'hook_install_tasks_alter')) {
+      $this->setUpNewHookInvocationsForState('hook_install_tasks_alter', $install_state);
     }
 
     // Give included profiles an opportunity to alter tasks (once per install
     // state so we don't get trapped in a loop).
-    $implementations = $this->getInstallTasksAlterImplementationsForInstallState($install_state);
+    $implementations = $this->getHookInvocationsForState('hook_install_tasks_alter', $install_state);
     foreach ($implementations as $function => $implementation_info) {
       if ($this->hookImplementationHasNotBeenInvoked($implementation_info)) {
         $this->updateHookImplementationStatusToInvoked($implementation_info);
@@ -148,11 +148,13 @@ class ProfileInstaller {
     return $is_new;
   }
 
+  /* REMOVE
   private function isNewInstallState($install_state) {
     $key = $this->getKeyForInstallState($install_state);
     $is_new = !isset($this->install_tasks_alters_status[$key]);
     return $is_new;
   }
+  // */
 
   private function setUpNewHookInvocationsForState($hook, array $state) {
     $implementations = $this->getHookImplementations($hook);
@@ -171,8 +173,9 @@ class ProfileInstaller {
     }
   }
 
+  /* REMOVE
   private function setUpNewInstallTaskAlterImplementationsForInstallState(array $install_state) {
-    $implementations = $this->getInstallTasksAlterImplementations();
+    $implementations = $this->getHookImplementations('hook_install_tasks_alter');
     $key = $this->getKeyForInstallState($install_state);
 
     if (isset($this->install_tasks_alters_status[$key])) {
@@ -187,6 +190,7 @@ class ProfileInstaller {
       $this->install_tasks_alters_status[$key][$function]['hook'] = 'hook_install_tasks_alter';
     }
   }
+  // */
 
   private function hookInvocationHasNotBeenCalled($invocation) {
     $hook = $invocation['hook'];
@@ -239,7 +243,8 @@ class ProfileInstaller {
       throw new Exception("Property does not exist: {$property}");
     }
 
-    $this->{$property}[$key][$function]['invoked'] = TRUE;
+    $this->{$property}[$key][$function]['invoked'] = TRUE; // @TODO REMOVE
+    $this->hook_invocations[$key][$function]['invoked'] = TRUE;
   }
 
   private function getFileWithHookImplementation($implementation_info) {
@@ -252,11 +257,13 @@ class ProfileInstaller {
     return $invocations;
   }
 
+  /* REMOVE
   private function getInstallTasksAlterImplementationsForInstallState(array $install_state) {
     $key = $this->getKeyForInstallState($install_state);
     $implementations = isset($this->install_tasks_alters_status[$key]) ? $this->install_tasks_alters_status[$key] : array();
     return $implementations;
   }
+  // */
 
   private function getHookImplementations($hook) {
     $implementations = array();
@@ -296,6 +303,7 @@ class ProfileInstaller {
     );
   }
 
+  /* REMOVE
   private function getInstallTasksAlterImplementations() {
     if (empty($this->install_tasks_alter_implementations)) {
       $this->setInstallTasksAlterImplementations();
@@ -303,7 +311,9 @@ class ProfileInstaller {
 
     return $this->install_tasks_alter_implementations;
   }
+  // */
 
+  /* REMOVE
   private function setInstallTasksAlterImplementations() {
     $this->install_tasks_alter_implementations = array();
 
@@ -316,6 +326,7 @@ class ProfileInstaller {
 
     }
   }
+  // */
 
   private static function getKeyForInstallState(array $install_state) {
     return self::getKeyForArray($install_state);
@@ -329,6 +340,10 @@ class ProfileInstaller {
 
     // Give included profiles an opportunity to alter install_configure_form
     // once per form state so we don't get trapped in a loop.
+    // @TODO This is confusing. "Implementation" is used differently in different contexts. Revise word choice here.
+    //   - $this->hook_implementations is a list of implementations in profile files
+    //   - $implementations below considers one "implementation" + unique install/form state an implementation
+    //   We need a new, better word for the thing referenced below.
     $implementations = $this->getInstallConfigureFormAlterImplementationsForFormState($form_state);
     foreach ($implementations as $function => $implementation_info) {
       if ($this->hookImplementationHasNotBeenInvoked($implementation_info)) {
