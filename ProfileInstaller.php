@@ -232,7 +232,7 @@ class ProfileInstaller {
     $function = $implementation_info['function'];
     $hook = $implementation_info['hook'];
 
-    $this->hook_invocations[$key][$function]['invoked'] = TRUE;
+    $this->hook_invocations[$hook][$key][$function]['invoked'] = TRUE;
   }
 
   private function getFileWithHookImplementation($implementation_info) {
