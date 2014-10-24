@@ -174,7 +174,7 @@ class ProfileInstaller {
       $this->hook_invocations[$hook][$key][$function]['file'] = $file;
       $this->hook_invocations[$hook][$key][$function]['invoked'] = FALSE;
       $this->hook_invocations[$hook][$key][$function]['key'] = $key;
-      $this->hook_invocations[$hook][$key][$function]['hook'] = 'hook_install_tasks_alter';
+      $this->hook_invocations[$hook][$key][$function]['hook'] = $hook;
     }
   }
 
@@ -197,6 +197,7 @@ class ProfileInstaller {
   }
   // */
 
+  // @TODO Consolidate/REMOVE. hookInvocationHasNotBeenCalled($invocation) and hookImplementationHasNotBeenInvoked, duplicative
   private function hookInvocationHasNotBeenCalled($invocation) {
     $hook = $invocation['hook'];
     $key = $invocation['key'];
