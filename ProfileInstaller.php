@@ -63,6 +63,13 @@ class ProfileInstaller {
     return $exists;
   }
 
+  /**
+   * Note: Invoking this hook is a little weird. It's not an alter, but it
+   * passes $install_state by reference. It also returns a result. It adds a lot
+   * of complexity to run this through a generic method like
+   * PetitionsInstaller::invokeHookWithParamsForState. Just handle all its
+   * business here.
+   */
   public function getInstallTasks(array $install_state) {
     $tasks = array(
       'profile_installer_install_profiles' => array(
@@ -84,7 +91,7 @@ class ProfileInstaller {
       if ($this->hookInvocationHasNotBeenCalled($invocation)) {
         $this->updateInvocationToInvoked($invocation);
         include_once $this->getFileWithHookImplementation($invocation);
-        $function = $invocation['function'];
+        $function = $this->getHookImplementation($invocation);
         $more_tasks = $function($install_state);
         $tasks = array_merge($tasks, $more_tasks);
       }
@@ -111,16 +118,22 @@ class ProfileInstaller {
     // Use our own handler for installing profile's modules.
     $tasks['install_profile_modules']['function'] = 'profile_installer_install_modules';
 
-    // Keep track of hook invocations.
-    if ($this->isNewStateForHookInvocations($install_state, 'hook_install_tasks_alter')) {
-      $this->setUpNewHookInvocationsForState('hook_install_tasks_alter', $install_state);
+    // Invoke included profiles' alters.
+    $tasks = $this->invokeAlterOnDataForState('hook_install_tasks_alter', $tasks, $install_state);
+
+    return $tasks;
+  }
+
+  private function invokeAlterOnDataForState($hook, &$data, $state) {
+    // Hooks should only be invoked once per install state or form state,
+    // otherwise it's easy to get trapped in a loop.
+    if ($this->isNewStateForHookInvocations($state, $hook)) {
+      $this->setUpNewHookInvocationsForState($hook, $state);
     }
 
-    // Give included profiles an opportunity to alter tasks (once per install
-    // state so we don't get trapped in a loop).
-    $implementations = $this->getHookInvocationsForState('hook_install_tasks_alter', $install_state);
+    $invocations = $this->getHookInvocationsForState($hook, $state);
 
-    foreach ($implementations as $implementation) {
+    foreach ($invocations as $implementation) {
       if ($this->hookImplementationHasNotBeenInvoked($implementation)) {
         $file = $this->getFileWithHookImplementation($implementation);
         $function = $this->getHookImplementation($implementation);
@@ -128,11 +141,41 @@ class ProfileInstaller {
         $this->updateHookImplementationStatusToInvoked($implementation);
 
         include_once $file;
-        $function($tasks, $install_state);
+        $function($data, $state);
       }
     }
 
-    return $tasks;
+    return $data;
+  }
+
+  private function invokeHookWithParamsForState($hook, $params, $state) {
+    // Hooks should only be invoked once per install state or form state,
+    // otherwise it's easy to get trapped in a loop.
+    if ($this->isNewStateForHookInvocations($state, $hook)) {
+      $this->setUpNewHookInvocationsForState($hook, $state);
+    }
+
+    $invocations = $this->getHookInvocationsForState($hook, $state);
+
+    $results = array();
+    foreach ($invocations as $implementation) {
+      if ($this->hookImplementationHasNotBeenInvoked($implementation)) {
+        $file = $this->getFileWithHookImplementation($implementation);
+        $function = $this->getHookImplementation($implementation);
+
+        $this->updateHookImplementationStatusToInvoked($implementation);
+
+        include_once $file;
+        $result = call_user_func($function, $params);
+
+        if (is_array($result)) {
+          array_merge($results, $result);
+        }
+
+      }
+    }
+
+    return $results;
   }
 
   /**
@@ -262,33 +305,7 @@ class ProfileInstaller {
   }
 
   function alterInstallConfigureForm($form, $form_state) {
-    // Keep track of hook invocations.
-    if ($this->isNewStateForHookInvocations($form_state, 'hook_form_install_configure_form_alter')) {
-      $this->setUpNewHookInvocationsForState('hook_form_install_configure_form_alter', $form_state);
-    }
-
-    // Give included profiles an opportunity to alter install_configure_form
-    // once per form state so we don't get trapped in a loop.
-    //
-    // @TODO This is confusing. "Implementation" is used differently in different contexts. Revise word choice here.
-    //   - $this->hook_implementations is a list of implementations in profile files
-    //   - $implementations below considers one "implementation" + unique install/form state an implementation
-    //   We need a new, better word for the thing referenced below. How about?...
-    //   - $invocations
-    //   - $invocation_info
-    $implementations = $this->getHookInvocationsForState('hook_form_install_configure_form_alter', $form_state);
-    foreach ($implementations as $implementation) {
-      if ($this->hookImplementationHasNotBeenInvoked($implementation)) {
-        $file = $this->getFileWithHookImplementation($implementation);
-        $function = $this->getHookImplementation($implementation);
-
-        $this->updateHookImplementationStatusToInvoked($implementation);
-
-        include_once $file;
-        $function($form, $form_state);
-      }
-    }
-
+    $form = $this->invokeAlterOnDataForState('hook_form_install_configure_form_alter', $form, $form_state);
     return $form;
   }
 
