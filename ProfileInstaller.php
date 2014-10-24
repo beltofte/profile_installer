@@ -123,10 +123,15 @@ class ProfileInstaller {
     // Give included profiles an opportunity to alter tasks (once per install
     // state so we don't get trapped in a loop).
     $implementations = $this->getHookInvocationsForState('hook_install_tasks_alter', $install_state);
-    foreach ($implementations as $function => $implementation_info) {
-      if ($this->hookImplementationHasNotBeenInvoked($implementation_info)) {
-        $this->updateHookImplementationStatusToInvoked($implementation_info);
-        include_once $this->getFileWithHookImplementation($implementation_info);
+
+    foreach ($implementations as $implementation) {
+      if ($this->hookImplementationHasNotBeenInvoked($implementation)) {
+        $file = $this->getFileWithHookImplementation($implementation);
+        $function = $this->getHookImplementation($implementation);
+
+        $this->updateHookImplementationStatusToInvoked($implementation);
+
+        include_once $file;
         $function($tasks, $install_state);
       }
     }
