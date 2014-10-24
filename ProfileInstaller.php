@@ -217,17 +217,26 @@ class ProfileInstaller {
     return !$implementation_info['invoked'];
   }
 
-  private function updateHookImplementationStatusToInvoked($implementation_info) {
+  private function updateHookImplementationStatusToInvoked(array $implementation_info) {
     $key = $implementation_info['key'];
     $function = $implementation_info['function'];
     $hook = $implementation_info['hook'];
 
-    if ($hook == 'hook_install_tasks_alter') {
-      $property = 'install_tasks_alters_status';
+    switch ($hook) {
+      case 'hook_install_tasks_alter':
+        $property = 'install_tasks_alters_status';
+        break;
+
+      case 'hook_form_install_configure_form_alter':
+        $property = 'install_configure_form_alters_status';
+        break;
+
+      default:
+        throw new Exception("No property for hook {$hook}");
     }
 
-    if ($hook == 'hook_form_install_configure_form_alter') {
-      $property = 'install_configure_form_alters_status';
+    if (!property_exists($this, $property)) {
+      throw new Exception("Property does not exist: {$property}");
     }
 
     $this->{$property}[$key][$function]['invoked'] = TRUE;
