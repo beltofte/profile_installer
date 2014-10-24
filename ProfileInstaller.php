@@ -23,8 +23,8 @@ class ProfileInstaller {
   private $install_state;
   // private $install_tasks_alter_implementations; // @todo Remove. REMOVE
   // private $install_tasks_alters_status; // @todo Remove. REMOVE
-  private $install_configure_form_alter_implementations; // @todo remove.
-  private $install_configure_form_alters_status;  // @todo remove.
+  // private $install_configure_form_alter_implementations// ; // @todo remove. REMOVE
+  // private $install_configure_form_alters_status;  // @todo remove. REMOVE
 
   private function __construct($baseprofile_name) {
     $this->setBaseProfileName($baseprofile_name);
@@ -226,24 +226,6 @@ class ProfileInstaller {
     $function = $implementation_info['function'];
     $hook = $implementation_info['hook'];
 
-    switch ($hook) {
-      case 'hook_install_tasks_alter':
-        $property = 'install_tasks_alters_status';
-        break;
-
-      case 'hook_form_install_configure_form_alter':
-        $property = 'install_configure_form_alters_status';
-        break;
-
-      default:
-        throw new Exception("No property for hook {$hook}");
-    }
-
-    if (!property_exists($this, $property)) {
-      throw new Exception("Property does not exist: {$property}");
-    }
-
-    $this->{$property}[$key][$function]['invoked'] = TRUE; // @TODO REMOVE
     $this->hook_invocations[$key][$function]['invoked'] = TRUE;
   }
 
@@ -334,17 +316,20 @@ class ProfileInstaller {
 
   function alterInstallConfigureForm($form, $form_state) {
     // Keep track of hook invocations.
-    if ($this->isNewFormState($form_state)) {
-      $this->setUpNewInstallConfigureFormAlterImplementationsForFormState($form_state);
+    if ($this->isNewStateForHookInvocations($form_state, 'hook_form_install_configure_form_alter')) {
+      $this->setUpNewHookInvocationsForState('hook_form_install_configure_form_alter', $form_state);
     }
 
     // Give included profiles an opportunity to alter install_configure_form
     // once per form state so we don't get trapped in a loop.
+    //
     // @TODO This is confusing. "Implementation" is used differently in different contexts. Revise word choice here.
     //   - $this->hook_implementations is a list of implementations in profile files
     //   - $implementations below considers one "implementation" + unique install/form state an implementation
-    //   We need a new, better word for the thing referenced below.
-    $implementations = $this->getInstallConfigureFormAlterImplementationsForFormState($form_state);
+    //   We need a new, better word for the thing referenced below. How about?...
+    //   - $invocations
+    //   - $invocation_info
+    $implementations = $this->getHookInvocationsForState('hook_form_install_configure_form_alter', $form_state);
     foreach ($implementations as $function => $implementation_info) {
       if ($this->hookImplementationHasNotBeenInvoked($implementation_info)) {
         $this->updateHookImplementationStatusToInvoked($implementation_info);
@@ -356,12 +341,15 @@ class ProfileInstaller {
     return $form;
   }
 
+  /* REMOVE
   private function isNewFormState(array $form_state) {
     $key = $this->getKeyForFormState($form_state);
     $is_new = !isset($this->install_configure_form_alters_status[$key]);
     return $is_new;
   }
+  // */
 
+  /* REMOVE
   private function setUpNewInstallConfigureFormAlterImplementationsForFormState(array $form_state) {
     $implementations = $this->getInstallConfigureFormAlterImplementations();
     $key = $this->getKeyForFormState($form_state);
@@ -378,7 +366,9 @@ class ProfileInstaller {
       $this->install_configure_form_alters_status[$key][$function]['hook'] = 'hook_form_install_configure_form_alter';
     }
   }
+  // */
 
+  /* REMOVE
   private function getInstallConfigureFormAlterImplementations() {
     if (empty($this->install_configure_form_alter_implementations)) {
       $this->setInstallConfigureFormAlterImplementations();
@@ -386,7 +376,9 @@ class ProfileInstaller {
 
     return $this->install_configure_form_alter_implementations;
   }
+  // */
 
+  /* REMOVE
   private function setInstallConfigureFormAlterImplementations() {
     $this->install_configure_form_alter_implementations = array();
 
@@ -399,12 +391,15 @@ class ProfileInstaller {
 
     }
   }
+  // */
 
+  /* REMOVE
   private function getInstallConfigureFormAlterImplementationsForFormState(array $form_state) {
     $key = $this->getKeyForFormState($form_state);
     $implementations = isset($this->install_configure_form_alters_status[$key]) ? $this->install_configure_form_alters_status[$key] : array();
     return $implementations;
   }
+  // */
 
   private static function getKeyForFormState(array $form_state) {
     return self::getKeyForArray($form_state);
