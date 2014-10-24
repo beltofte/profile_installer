@@ -233,6 +233,10 @@ class ProfileInstaller {
     return $implementation_info['file'];
   }
 
+  private function getHookImplementation($implementation_info) {
+    return $implementation_info['function'];
+  }
+
   private function getHookInvocationsForState($hook, array $state) {
     $key = $this->getKeyForArray($state);
     $invocations = !empty($this->hook_invocations[$hook][$key]) ? $this->hook_invocations[$hook][$key] : array();
@@ -249,6 +253,7 @@ class ProfileInstaller {
 
   private function getHookImplementations($hook) {
     $implementations = array();
+
     if (empty($this->hook_implementations)) {
       $this->setHookImplementations();
     }
@@ -330,10 +335,14 @@ class ProfileInstaller {
     //   - $invocations
     //   - $invocation_info
     $implementations = $this->getHookInvocationsForState('hook_form_install_configure_form_alter', $form_state);
-    foreach ($implementations as $function => $implementation_info) {
-      if ($this->hookImplementationHasNotBeenInvoked($implementation_info)) {
-        $this->updateHookImplementationStatusToInvoked($implementation_info);
-        include_once $this->getFileWithHookImplementation($implementation_info);
+    foreach ($implementations as $implementation) {
+      if ($this->hookImplementationHasNotBeenInvoked($implementation)) {
+        $file = $this->getFileWithHookImplementation($implementation);
+        $function = $this->getHookImplementation($implementation);
+
+        $this->updateHookImplementationStatusToInvoked($implementation);
+
+        include_once $file;
         $function($form, $form_state);
       }
     }
