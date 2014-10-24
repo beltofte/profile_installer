@@ -214,7 +214,7 @@ class ProfileInstaller {
   }
 
   private function hookImplementationHasNotBeenInvoked($implementation_info) {
-    return $implementation_info['invoked'];
+    return !$implementation_info['invoked'];
   }
 
   private function updateHookImplementationStatusToInvoked($implementation_info) {
