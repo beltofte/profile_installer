@@ -7,21 +7,47 @@
 
 class ProfileInstaller {
 
+  // ProfileInstaller is a singleton. ::getInstallerForProfile stores instance here.
   private static $instance;
 
+  // First profile to instantiate ProfileInstaller (the one selected via Drupal
+  // GUI or specified by `drush site-install <profile>` command) is the "baseprofile".
   private $baseprofile_name;
   private $baseprofile_path;
-  private $hook_implementations;
-  private $hook_invocations;
+
+  // Keep track of profiles included by baseprofile or included profiles.
   private $included_profiles;
-  // Note: 'install_profile_modules' is the variable name used by Drupal core.
-  // It's reused here for consistency with core, even though
-  // install_profile_dependencies may seem more intuitive and consistent.
+
+  // Keep track of which supported hooks have been implemented by included profiles.
+  private $hook_implementations;
+
+  // Each hook should only be invoked once per install state or form state,
+  // otherwise it's easy to get trapped in a loop. Keep track here.
+  private $hook_invocations;
+
+  // 'install_profile_modules' is the variable name used by Drupal core to keep
+  // track of an install profile's dependencies and then install them. The same
+  // name is reused here for consistency.
   private $install_profile_modules;
+
+  // Dependencies to be removed, specified by included profiles.
   private $install_profile_dependency_removals;
+
+  // Included profiles' install hooks are organized here. Install profiles can
+  // examine, reorder, and modify this list of callbacks as needed.
   private $install_callbacks;
+
+  // Stores and returns install state for implementers of hook_install_tasks.
+  // Install state is NOT tracked or updated throughout install process here.
   private $install_state;
 
+  /**
+   * ProfileInstaller is a singleton. Instantiate via ::getInstallerForProfile.
+   *
+   * @param $baseprofile_name
+   *   Parent profile which includes other profiles via info file and
+   *   instantiates installer.
+   */
   private function __construct($baseprofile_name) {
     $this->setBaseProfileName($baseprofile_name);
     $this->setBaseProfilePath();
@@ -30,6 +56,17 @@ class ProfileInstaller {
     $this->setInstallCallbacks();
   }
 
+  /**
+   * ProfileInstaller is a singleton. Instantiate it here.
+   *
+   * @param string $profile_name
+   *   Parent profile which includes other profiles via info file and
+   *   instantiates installer.
+   *
+   * @return ProfileInstaller
+   *
+   * @throws Exception
+   */
   public static function getInstallerForProfile($profile_name = '') {
     if (empty(self::$instance) && !empty($profile_name)) {
       self::$instance = new self($profile_name);
@@ -47,7 +84,17 @@ class ProfileInstaller {
   }
 
   /**
-   * Run install script (invoke hook_install) for included profiles.
+   * Run install scripts.
+   *
+   * This runs after the baseprofile's install hook has already run and after
+   * modules have been installed.
+   *
+   * By default, this simply invokes hook_install for included profiles.
+   * For more advanced uses install profiles can modify the list of callbacks
+   * invoked here.
+   *
+   * @see ProfileInstaller::getInstallTasks
+   * @see profile_installer_install_profiles()
    */
   public function install() {
     foreach ($this->install_callbacks as $callback => $path) {
@@ -64,11 +111,16 @@ class ProfileInstaller {
   }
 
   /**
+   * Invokes hook_install_tasks for profiles included by baseprofile.
+   *
    * Note: Invoking this hook is a little weird. It's not an alter, but it
    * passes $install_state by reference. It also returns a result. It adds a lot
    * of complexity to run this through a generic method like
    * PetitionsInstaller::invokeHookWithParamsForState. Just handle all its
    * business here.
+   *
+   * @return array
+   * @see hook_install_tasks
    */
   public function getInstallTasks(array $install_state) {
     $tasks = array(
@@ -105,15 +157,35 @@ class ProfileInstaller {
   }
 
   /**
+   * Provides install_state in case it was altered by hook_install_tasks.
+   *
+   * $install_state is passed by reference to hook_install_tasks.
+   * If/When install_state is updated by any implementers of hook_install_tasks
+   * it's stored in ProfileInstaller::$install_state and publicly accessible
+   * via the getter here.
+   *
    * WARNING: This should only be called by hook_install_tasks. That's the only
    * place we're tracking current install_state.
    *
    * @return array
+   *   $install_state, for profiles implementing hook_install_tasks
    */
   public function getInstallState() {
     return $this->install_state;
   }
 
+  /**
+   * Invokes hook_install_tasks_alter() for included profiles.
+   *
+   * @param array $tasks
+   *   @see hook_install_tasks_alter
+   *
+   * @param $install_state
+   *   @see hook_install_tasks_alter
+   *
+   * @return array
+   *   Altered tasks.
+   */
   public function alterInstallTasks($tasks, $install_state) {
     // Use our own handler for installing profile's modules.
     $tasks['install_profile_modules']['function'] = 'profile_installer_install_modules';
