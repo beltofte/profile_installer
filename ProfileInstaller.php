@@ -323,7 +323,7 @@ class ProfileInstaller {
     $implementations = $this->getInstallConfigureFormAlterImplementationsForFormState($form_state);
     foreach ($implementations as $function => $implementation_info) {
       if ($this->hookImplementationHasNotBeenInvoked($implementation_info)) {
-        $this->updateHookImplementationStatusToInvoked($function, $form_state);
+        $this->updateHookImplementationStatusToInvoked($implementation_info);
         include_once $this->getFileWithHookImplementation($implementation_info);
         $function($form, $form_state);
       }
