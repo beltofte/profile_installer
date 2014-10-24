@@ -21,10 +21,6 @@ class ProfileInstaller {
   private $install_profile_dependency_removals;
   private $install_callbacks;
   private $install_state;
-  // private $install_tasks_alter_implementations; // @todo Remove. REMOVE
-  // private $install_tasks_alters_status; // @todo Remove. REMOVE
-  // private $install_configure_form_alter_implementations// ; // @todo remove. REMOVE
-  // private $install_configure_form_alters_status;  // @todo remove. REMOVE
 
   private function __construct($baseprofile_name) {
     $this->setBaseProfileName($baseprofile_name);
@@ -153,14 +149,6 @@ class ProfileInstaller {
     return $is_new;
   }
 
-  /* REMOVE
-  private function isNewInstallState($install_state) {
-    $key = $this->getKeyForInstallState($install_state);
-    $is_new = !isset($this->install_tasks_alters_status[$key]);
-    return $is_new;
-  }
-  // */
-
   private function setUpNewHookInvocationsForState($hook, array $state) {
     $implementations = $this->getHookImplementations($hook);
     $key = $this->getKeyForArray($state);
@@ -177,25 +165,6 @@ class ProfileInstaller {
       $this->hook_invocations[$hook][$key][$function]['hook'] = $hook;
     }
   }
-
-  /* REMOVE
-  private function setUpNewInstallTaskAlterImplementationsForInstallState(array $install_state) {
-    $implementations = $this->getHookImplementations('hook_install_tasks_alter');
-    $key = $this->getKeyForInstallState($install_state);
-
-    if (isset($this->install_tasks_alters_status[$key])) {
-      throw new Exception ('Not new. Alters for this install_state have already been set up.');
-    }
-
-    foreach ($implementations as $function => $file) {
-      $this->install_tasks_alters_status[$key][$function]['function'] = $function;
-      $this->install_tasks_alters_status[$key][$function]['file'] = $file;
-      $this->install_tasks_alters_status[$key][$function]['invoked'] = FALSE;
-      $this->install_tasks_alters_status[$key][$function]['key'] = $key;
-      $this->install_tasks_alters_status[$key][$function]['hook'] = 'hook_install_tasks_alter';
-    }
-  }
-  // */
 
   // @TODO Consolidate/REMOVE. hookInvocationHasNotBeenCalled($invocation) and hookImplementationHasNotBeenInvoked, duplicative
   private function hookInvocationHasNotBeenCalled($invocation) {
@@ -249,14 +218,6 @@ class ProfileInstaller {
     return $invocations;
   }
 
-  /* REMOVE
-  private function getInstallTasksAlterImplementationsForInstallState(array $install_state) {
-    $key = $this->getKeyForInstallState($install_state);
-    $implementations = isset($this->install_tasks_alters_status[$key]) ? $this->install_tasks_alters_status[$key] : array();
-    return $implementations;
-  }
-  // */
-
   private function getHookImplementations($hook) {
     $implementations = array();
 
@@ -296,31 +257,6 @@ class ProfileInstaller {
     );
   }
 
-  /* REMOVE
-  private function getInstallTasksAlterImplementations() {
-    if (empty($this->install_tasks_alter_implementations)) {
-      $this->setInstallTasksAlterImplementations();
-    }
-
-    return $this->install_tasks_alter_implementations;
-  }
-  // */
-
-  /* REMOVE
-  private function setInstallTasksAlterImplementations() {
-    $this->install_tasks_alter_implementations = array();
-
-    foreach ($this->getIncludedProfiles() as $profile_name) {
-      $function = "{$profile_name}_install_tasks_alter";
-
-      if ($file = $this->findFunctionInProfile($function, $profile_name)) {
-        $this->install_tasks_alter_implementations[$function] = $file;
-      }
-
-    }
-  }
-  // */
-
   private static function getKeyForInstallState(array $install_state) {
     return self::getKeyForArray($install_state);
   }
@@ -355,66 +291,6 @@ class ProfileInstaller {
 
     return $form;
   }
-
-  /* REMOVE
-  private function isNewFormState(array $form_state) {
-    $key = $this->getKeyForFormState($form_state);
-    $is_new = !isset($this->install_configure_form_alters_status[$key]);
-    return $is_new;
-  }
-  // */
-
-  /* REMOVE
-  private function setUpNewInstallConfigureFormAlterImplementationsForFormState(array $form_state) {
-    $implementations = $this->getInstallConfigureFormAlterImplementations();
-    $key = $this->getKeyForFormState($form_state);
-
-    if (isset($this->install_configure_form_alters_status[$key])) {
-      throw new Exception ('Not new. Alters for this form_state have already been set up.');
-    }
-
-    foreach ($implementations as $function => $file) {
-      $this->install_configure_form_alters_status[$key][$function]['function'] = $function;
-      $this->install_configure_form_alters_status[$key][$function]['file'] = $file;
-      $this->install_configure_form_alters_status[$key][$function]['invoked'] = FALSE;
-      $this->install_configure_form_alters_status[$key][$function]['key'] = $key;
-      $this->install_configure_form_alters_status[$key][$function]['hook'] = 'hook_form_install_configure_form_alter';
-    }
-  }
-  // */
-
-  /* REMOVE
-  private function getInstallConfigureFormAlterImplementations() {
-    if (empty($this->install_configure_form_alter_implementations)) {
-      $this->setInstallConfigureFormAlterImplementations();
-    }
-
-    return $this->install_configure_form_alter_implementations;
-  }
-  // */
-
-  /* REMOVE
-  private function setInstallConfigureFormAlterImplementations() {
-    $this->install_configure_form_alter_implementations = array();
-
-    foreach ($this->getIncludedProfiles() as $profile_name) {
-      $function = "{$profile_name}_form_install_configure_form_alter";
-
-      if ($file = $this->findFunctionInProfile($function, $profile_name)) {
-        $this->install_configure_form_alter_implementations[$function] = $file;
-      }
-
-    }
-  }
-  // */
-
-  /* REMOVE
-  private function getInstallConfigureFormAlterImplementationsForFormState(array $form_state) {
-    $key = $this->getKeyForFormState($form_state);
-    $implementations = isset($this->install_configure_form_alters_status[$key]) ? $this->install_configure_form_alters_status[$key] : array();
-    return $implementations;
-  }
-  // */
 
   private static function getKeyForFormState(array $form_state) {
     return self::getKeyForArray($form_state);
