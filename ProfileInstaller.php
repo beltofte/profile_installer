@@ -213,7 +213,7 @@ class ProfileInstaller {
   }
 
   private function getHookImplementationForProfile($hook, $profile_name) {
-    $suffix = substr($hook, 4);
+    $suffix = substr($hook, 5);
     return "{$profile_name}_{$suffix}";
   }
 
