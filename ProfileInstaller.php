@@ -139,11 +139,15 @@ class ProfileInstaller {
 
     // Give included profiles an opportunity to add tasks.
     $invocations = $this->getHookInvocationsForState($hook, $install_state);
-    foreach ($invocations as $invocation) {
-      if ($this->hookInvocationHasNotBeenCalled($invocation)) {
-        $this->updateInvocationToInvoked($invocation);
-        include_once $this->getFileWithHookImplementation($invocation);
-        $function = $this->getHookImplementation($invocation);
+
+    foreach ($invocations as $implementation_info) {
+      if ($this->hookImplementationHasNotBeenInvoked($implementation_info)) {
+        $function = $this->getHookImplementation($implementation_info);
+        $file = $this->getFileWithHookImplementation($implementation_info);
+
+        $this->updateHookImplementationStatusToInvoked($implementation_info);
+
+        include_once $file;
         $more_tasks = $function($install_state);
         $tasks = array_merge($tasks, $more_tasks);
       }
@@ -281,12 +285,12 @@ class ProfileInstaller {
     $invocations = $this->getHookInvocationsForState($hook, $state);
 
     $results = array();
-    foreach ($invocations as $implementation) {
-      if ($this->hookImplementationHasNotBeenInvoked($implementation)) {
-        $file = $this->getFileWithHookImplementation($implementation);
-        $function = $this->getHookImplementation($implementation);
+    foreach ($invocations as $implementation_info) {
+      if ($this->hookImplementationHasNotBeenInvoked($implementation_info)) {
+        $file = $this->getFileWithHookImplementation($implementation_info);
+        $function = $this->getHookImplementation($implementation_info);
 
-        $this->updateHookImplementationStatusToInvoked($implementation);
+        $this->updateHookImplementationStatusToInvoked($implementation_info);
 
         include_once $file;
         $result = call_user_func($function, $params);
@@ -480,29 +484,9 @@ class ProfileInstaller {
     }
   }
 
-  private static function getSupportedHooks() {
-    return array(
-      'hook_install_tasks',
-      'hook_install_tasks_alter',
-      'hook_form_install_configure_form_alter',
-    );
-  }
-
-  private static function getKeyForInstallState(array $install_state) {
-    return self::getKeyForArray($install_state);
-  }
-
   function alterInstallConfigureForm($form, $form_state) {
     $form = $this->invokeAlterOnDataForState('hook_form_install_configure_form_alter', $form, $form_state);
     return $form;
-  }
-
-  private static function getKeyForFormState(array $form_state) {
-    return self::getKeyForArray($form_state);
-  }
-
-  private static function getKeyForArray(array $array) {
-    return md5(serialize($array));
   }
 
   public function removeInstallProfileModules(array $modules) {
@@ -539,6 +523,19 @@ class ProfileInstaller {
   /**
    * Getters and setters. ======================================================
    */
+
+  private static function getSupportedHooks() {
+    return array(
+      'hook_install_tasks',
+      'hook_install_tasks_alter',
+      'hook_form_install_configure_form_alter',
+    );
+  }
+
+  private static function getKeyForArray(array $array) {
+    return md5(serialize($array));
+  }
+
 
   public function setInstallCallbacks($callbacks = array()) {
     if (empty($callbacks)) {
