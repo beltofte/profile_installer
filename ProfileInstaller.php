@@ -175,7 +175,7 @@ class ProfileInstaller {
       foreach ($included_profiles as $profile_name) {
         $function = "{$profile_name}_install";
         if ($file = $this->findFunctionInProfile($function, $profile_name)) {
-          $callbacks[$function] = $path;
+          $callbacks[$function] = $file;
         }
       }
     }
