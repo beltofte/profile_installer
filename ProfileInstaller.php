@@ -662,8 +662,6 @@ class ProfileInstaller {
 
   private function getIncludedProfiles() {
     if (empty($this->included_profiles)) {
-      $profile_name = $this->getBaseProfileName();
-      $profile_path = $this->getBaseProfilePath();
       $info_file = self::getInfoFileForProfile($this->baseprofile_name);
       $this->included_profiles = self::getProfileNamesFromInfoFile($info_file);
     }
