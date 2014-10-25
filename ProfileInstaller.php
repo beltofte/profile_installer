@@ -204,7 +204,7 @@ class ProfileInstaller {
   }
 
   /**
-   * Invokes hook_install_tasks for profiles included by baseprofile.
+   * Invokes hook_install_tasks and adds task to install included profiles.
    *
    * Note: Invoking this hook is a little weird. It's not an alter, but it
    * passes $install_state by reference. It also returns a result. It adds a lot
@@ -254,25 +254,7 @@ class ProfileInstaller {
   }
 
   /**
-   * Provides install_state in case it was altered by hook_install_tasks.
-   *
-   * $install_state is passed by reference to hook_install_tasks.
-   * If/When install_state is updated by any implementers of hook_install_tasks
-   * it's stored in ProfileInstaller::$install_state and publicly accessible
-   * via the getter here.
-   *
-   * WARNING: This should only be called by hook_install_tasks. That's the only
-   * place we're tracking current install_state.
-   *
-   * @return array
-   *   $install_state, for profiles implementing hook_install_tasks
-   */
-  public function getInstallState() {
-    return $this->install_state;
-  }
-
-  /**
-   * Invokes hook_install_tasks_alter() for included profiles.
+   * Invokes hook_install_tasks_alter and adds our own handler for module installation.
    *
    * @param array $tasks
    *   @see hook_install_tasks_alter
@@ -292,6 +274,38 @@ class ProfileInstaller {
 
     return $tasks;
   }
+
+  /**
+   * Enables included profiles to alter install_configure_form.
+   *
+   * @param array $form
+   * @param array $form_state
+   * @return mixed
+   */
+  function alterInstallConfigureForm($form, $form_state) {
+    $form = $this->invokeAlterOnDataForState('hook_form_install_configure_form_alter', $form, $form_state);
+    return $form;
+  }
+
+
+  /**
+   * Provides install_state in case it was altered by hook_install_tasks.
+   *
+   * $install_state is passed by reference to hook_install_tasks.
+   * If/When install_state is updated by any implementers of hook_install_tasks
+   * it's stored in ProfileInstaller::$install_state and publicly accessible
+   * via the getter here.
+   *
+   * WARNING: This should only be called by hook_install_tasks. That's the only
+   * place we're tracking current install_state.
+   *
+   * @return array
+   *   $install_state, for profiles implementing hook_install_tasks
+   */
+  public function getInstallState() {
+    return $this->install_state;
+  }
+
 
   /**
    * Invokes alter hooks for included profiles.
@@ -575,11 +589,6 @@ class ProfileInstaller {
 
       }
     }
-  }
-
-  function alterInstallConfigureForm($form, $form_state) {
-    $form = $this->invokeAlterOnDataForState('hook_form_install_configure_form_alter', $form, $form_state);
-    return $form;
   }
 
   public function removeInstallProfileModules(array $modules) {
