@@ -78,12 +78,36 @@ class ProfileInstaller {
     $this->setInstallCallbacks();
   }
 
+  /**
+   * Keeps track of parent profile, the one instantiating ProfileInstaller.
+   *
+   * @param string $baseprofile_name
+   */
   public function setBaseProfileName($baseprofile_name) {
     if (self::profileExists($baseprofile_name, TRUE)) {
       $this->baseprofile_name = $baseprofile_name;
     }
   }
 
+  /**
+   * Verifies profile is included in Drupal code base.
+   *
+   * @param string $profile_name
+   *
+   * @return bool
+   */
+  public static function profileExists($profile_name) {
+    $path = self::getPathToProfile($profile_name);
+    $exists = is_dir($path);
+
+    return $exists;
+  }
+
+  /**
+   * Stores absolute path to baseprofile.
+   *
+   * @throws Exception
+   */
   public function setBaseProfilePath() {
     if (empty($this->baseprofile_name)) {
       throw new Exception("Cannot set baseprofile_path if baseprofile_name is empty.");
@@ -91,12 +115,39 @@ class ProfileInstaller {
     $this->baseprofile_path = $this->getPathToProfile($this->baseprofile_name);
   }
 
+  /**
+   * Detects profiles included by baseprofile and sets included_profiles property.
+   */
   private function setIncludedProfiles() {
     $profiles = $this->getIncludedProfiles();
     // @todo Add sorting (alpha, weight, etc.).
     $this->included_profiles = $profiles;
   }
 
+  /**
+   * Get profiles included in baseprofile's info file.
+   *
+   * @todo Add recursion, included_profiles property should include profiles included by included profiles (see getAllDependenciesForProfile).
+   *
+   * @return array
+   */
+  private function getIncludedProfiles() {
+    if (empty($this->included_profiles)) {
+      $info_file = self::getInfoFileForProfile($this->baseprofile_name);
+      $this->included_profiles = self::getProfileNamesFromInfoFile($info_file);
+    }
+
+    return $this->included_profiles;
+  }
+
+  /**
+   * Set modules to be enabled during installation of baseprofile.
+   *
+   * Defaults to detecting all module dependencies declared by baseprofile and
+   * included profiles.
+   *
+   * @param array $modules
+   */
   public function setInstallProfileModules($modules = array()) {
     if (empty($modules) || empty($this->install_profile_modules)) {
       $dependencies = $this->getAllDependenciesForProfile( $this->getBaseProfileName() );
@@ -106,6 +157,18 @@ class ProfileInstaller {
     $this->install_profile_modules = $modules;
   }
 
+  /**
+   * Set install callbacks to run during installation.
+   *
+   * These callbacks run after modules have been installed and after
+   * baseprofile's install script has run.
+   *
+   * Defaults to using all included profiles' install hooks. This list of
+   * callbacks can be inspected, modified, and overridden by any profile that
+   * instantiates ProfileInstaller.
+   *
+   * @param array $callbacks
+   */
   public function setInstallCallbacks($callbacks = array()) {
     if (empty($callbacks)) {
       $included_profiles = $this->getIncludedProfiles();
@@ -138,13 +201,6 @@ class ProfileInstaller {
       include_once $path;
       call_user_func($callback);
     }
-  }
-
-  public static function profileExists($profile_name, $raise_exception = FALSE) {
-    $path = self::getPathToProfile($profile_name);
-    $exists = is_dir($path);
-
-    return $exists;
   }
 
   /**
@@ -660,14 +716,6 @@ class ProfileInstaller {
     return $profile_names;
   }
 
-  private function getIncludedProfiles() {
-    if (empty($this->included_profiles)) {
-      $info_file = self::getInfoFileForProfile($this->baseprofile_name);
-      $this->included_profiles = self::getProfileNamesFromInfoFile($info_file);
-    }
-
-    return $this->included_profiles;
-  }
 
   public static function getPathToProfile($profile_name) {
     return DRUPAL_ROOT . "/profiles/{$profile_name}";
