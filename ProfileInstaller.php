@@ -119,11 +119,6 @@ class ProfileInstaller {
     $this->install_callbacks = $callbacks;
   }
 
-  public static function installProfilesIncludedByProfile($profile) {
-    $installer = new self($profile);
-    $installer->install();
-  }
-
   /**
    * Run install scripts.
    *
