@@ -45,7 +45,7 @@ class ProfileInstaller {
    * ProfileInstaller is a singleton. Instantiate it here.
    *
    * @param string $profile_name
-   *   Parent profile which includes other profiles via info file and
+   *   Parent profile, or "baseprofile" which includes other profiles via info file and
    *   instantiates installer.
    *
    * @return ProfileInstaller
@@ -110,12 +110,13 @@ class ProfileInstaller {
     if (empty($callbacks)) {
       $included_profiles = $this->getIncludedProfiles();
       foreach ($included_profiles as $profile_name) {
-        $path = $this->getPathToProfile($profile_name);
-        $path = "{$path}/{$profile_name}.install";
-        $func = "{$profile_name}_install";
-        $callbacks[$func] = $path;
+        $function = "{$profile_name}_install";
+        if ($file = $this->findFunctionInProfile($function, $profile_name)) {
+          $callbacks[$function] = $path;
+        }
       }
     }
+
     $this->install_callbacks = $callbacks;
   }
 
