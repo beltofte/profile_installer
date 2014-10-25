@@ -2,7 +2,7 @@
 
 /**
  * @file ProfileInstaller.php
- * Provides BaseProfile class.
+ * Provides ProfileInstaller class.
  */
 
 class ProfileInstaller {
@@ -42,21 +42,6 @@ class ProfileInstaller {
   private $install_state;
 
   /**
-   * ProfileInstaller is a singleton. Instantiate via ::getInstallerForProfile.
-   *
-   * @param $baseprofile_name
-   *   Parent profile which includes other profiles via info file and
-   *   instantiates installer.
-   */
-  private function __construct($baseprofile_name) {
-    $this->setBaseProfileName($baseprofile_name);
-    $this->setBaseProfilePath();
-    $this->setIncludedProfiles();
-    $this->setInstallProfileModules();
-    $this->setInstallCallbacks();
-  }
-
-  /**
    * ProfileInstaller is a singleton. Instantiate it here.
    *
    * @param string $profile_name
@@ -76,6 +61,62 @@ class ProfileInstaller {
     }
 
     return self::$instance;
+  }
+
+  /**
+   * ProfileInstaller is a singleton. Instantiate via ::getInstallerForProfile.
+   *
+   * @param $baseprofile_name
+   *   Parent profile which includes other profiles via info file and
+   *   instantiates installer.
+   */
+  private function __construct($baseprofile_name) {
+    $this->setBaseProfileName($baseprofile_name);
+    $this->setBaseProfilePath();
+    $this->setIncludedProfiles();
+    $this->setInstallProfileModules();
+    $this->setInstallCallbacks();
+  }
+
+  public function setBaseProfileName($baseprofile_name) {
+    if (self::profileExists($baseprofile_name, TRUE)) {
+      $this->baseprofile_name = $baseprofile_name;
+    }
+  }
+
+  public function setBaseProfilePath() {
+    if (empty($this->baseprofile_name)) {
+      throw new Exception("Cannot set baseprofile_path if baseprofile_name is empty.");
+    }
+    $this->baseprofile_path = $this->getPathToProfile($this->baseprofile_name);
+  }
+
+  private function setIncludedProfiles() {
+    $profiles = $this->getIncludedProfiles();
+    // @todo Add sorting (alpha, weight, etc.).
+    $this->included_profiles = $profiles;
+  }
+
+  public function setInstallProfileModules($modules = array()) {
+    if (empty($modules) || empty($this->install_profile_modules)) {
+      $dependencies = $this->getAllDependenciesForProfile( $this->getBaseProfileName() );
+      $removals = $this->getAllDependencyRemovalsForProfile( $this->getBaseProfileName() );
+      $modules = $this->removeNeedlesFromHaystack($removals, $dependencies);
+    }
+    $this->install_profile_modules = $modules;
+  }
+
+  public function setInstallCallbacks($callbacks = array()) {
+    if (empty($callbacks)) {
+      $included_profiles = $this->getIncludedProfiles();
+      foreach ($included_profiles as $profile_name) {
+        $path = $this->getPathToProfile($profile_name);
+        $path = "{$path}/{$profile_name}.install";
+        $func = "{$profile_name}_install";
+        $callbacks[$func] = $path;
+      }
+    }
+    $this->install_callbacks = $callbacks;
   }
 
   public static function installProfilesIncludedByProfile($profile) {
@@ -537,18 +578,6 @@ class ProfileInstaller {
   }
 
 
-  public function setInstallCallbacks($callbacks = array()) {
-    if (empty($callbacks)) {
-      $included_profiles = $this->getIncludedProfiles();
-      foreach ($included_profiles as $profile_name) {
-        $path = $this->getPathToProfile($profile_name);
-        $path = "{$path}/{$profile_name}.install";
-        $func = "{$profile_name}_install";
-        $callbacks[$func] = $path;
-      }
-    }
-    $this->install_callbacks = $callbacks;
-  }
 
   public function getInstallCallbacks() {
     if (empty($this->install_callbacks)) {
@@ -575,14 +604,7 @@ class ProfileInstaller {
     $this->install_profile_dependency_removals = $removals;
   }
 
-  public function setInstallProfileModules($modules = array()) {
-    if (empty($modules) || empty($this->install_profile_modules)) {
-      $dependencies = $this->getAllDependenciesForProfile( $this->getBaseProfileName() );
-      $removals = $this->getAllDependencyRemovalsForProfile( $this->getBaseProfileName() );
-      $modules = $this->removeNeedlesFromHaystack($removals, $dependencies);
-    }
-    $this->install_profile_modules = $modules;
-  }
+
 
   public function getInstallProfileModules() {
     return $this->install_profile_modules;
@@ -634,11 +656,6 @@ class ProfileInstaller {
     return isset($info['remove_dependencies']) ? $info['remove_dependencies'] : array();
   }
 
-  private function setIncludedProfiles() {
-    $profiles = $this->getIncludedProfiles();
-    // @todo Add sorting (alpha, weight, etc.).
-    $this->included_profiles = $profiles;
-  }
 
   public static function getProfileNamesFromInfoFile($info_file) {
     $info = drupal_parse_info_file($info_file);
@@ -674,20 +691,8 @@ class ProfileInstaller {
     return $this->baseprofile_name;
   }
 
-  public function setBaseProfileName($baseprofile_name) {
-    if (self::profileExists($baseprofile_name, TRUE)) {
-      $this->baseprofile_name = $baseprofile_name;
-    }
-  }
-
   public function getBaseProfilePath() {
     return $this->baseprofile_path;
   }
 
-  public function setBaseProfilePath() {
-    if (empty($this->baseprofile_name)) {
-      throw new Exception("Cannot set baseprofile_path if baseprofile_name is empty.");
-    }
-    $this->baseprofile_path = $this->getPathToProfile($this->baseprofile_name);
-  }
 }
