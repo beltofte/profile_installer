@@ -136,8 +136,8 @@ And add this to your profile file:
    *
    * Allows the profile to alter the site configuration form.
    */
-  function standard2_form_install_configure_form_alter(&$form, $form_state) {
-    $installer = ProfileInstaller::getInstallerForProfile('standard2');
+  function standard3_form_install_configure_form_alter(&$form, $form_state) {
+    $installer = ProfileInstaller::getInstallerForProfile('standard3');
     $form = $installer->alterInstallConfigureForm($form, $form_state);
   }
 ```
