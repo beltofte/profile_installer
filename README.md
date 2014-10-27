@@ -6,6 +6,7 @@ Profile Installer
  - [Proof of concept](#proof-of-concept)
  - [Usage](#usage)
  - [Installation & glue code](#installation--glue-code)
+ - [Examples](#examples)
 
 
 Overview
@@ -141,3 +142,10 @@ And add this to your profile file:
     $form = $installer->alterInstallConfigureForm($form, $form_state);
   }
 ```
+
+
+Examples
+--------
+
+Documentation on included working examples can be found [here](https://github.com/bryanhirsch/profile_installer/tree/master/examples).
+
