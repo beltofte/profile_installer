@@ -671,8 +671,6 @@ class ProfileInstaller {
     return self::getPathToProfile($profile_name) . "/{$profile_name}.profile";
   }
 
-
-
   /**
    * Get hook implementations to be invoked for designated state.
    *
