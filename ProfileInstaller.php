@@ -130,24 +130,43 @@ class ProfileInstaller {
    * Detects profiles included by baseprofile and sets included_profiles property.
    */
   private function setIncludedProfiles() {
-    $profiles = $this->getIncludedProfiles();
-    // @todo Add sorting (alpha, weight, etc.).
+    $profiles = $this->getAllIncludedProfiles($this->getBaseProfileName());
     $this->included_profiles = $profiles;
+  }
+
+  /**
+   * Returns all included profiles, from info file, and included profiles' info files.
+   *
+   * @param string $profile_name
+   *   Profile to inspect.
+   *
+   * @return array
+   *   Included profiles.
+   */
+  private static function getAllIncludedProfiles($profile_name) {
+    // Get top-level profiles included by profile.
+    $info_file = self::getInfoFileForProfile($profile_name);
+    $profile_names = self::getProfileNamesFromInfoFile($info_file);
+
+    // Recurse. Detect included profiles' profiles.
+    foreach ($profile_names as $profile_name) {
+      $additional_profile_names = self::getAllIncludedProfiles($profile_name);
+      $profile_names = array_unique(array_merge($profile_names, $additional_profile_names));
+    }
+
+    return $profile_names;
   }
 
   /**
    * Get profiles included in baseprofile's info file.
    *
-   * @todo Add recursion, included_profiles property should include profiles included by included profiles (see getAllDependenciesForProfile).
-   *
    * @return array
+   *   Profiles to be included by baseprofile and its included profiles.
    */
   private function getIncludedProfiles() {
     if (empty($this->included_profiles)) {
-      $info_file = self::getInfoFileForProfile($this->baseprofile_name);
-      $this->included_profiles = self::getProfileNamesFromInfoFile($info_file);
+      $this->setIncludedProfiles();
     }
-
     return $this->included_profiles;
   }
 
