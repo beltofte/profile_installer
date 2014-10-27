@@ -4,7 +4,6 @@ core = 7.x
 
 ; Include other Drupal install profiles included in the code base.
 profiles[] = standard2
-profiles[] = minimal
 
 ; Remove unwanted dependencies or conflicting feature modules from included profiles.
 remove_dependencies[] = dblog
