@@ -5,13 +5,15 @@ Profile Installer
  - [Overview](#overview)
  - [Proof of concept](#proof-of-concept)
  - [Usage](#usage)
- - [Glue](#glue)
+ - [Installation & glue code](#installation--glue-code)
+
 
 Overview
 --------
 
 Profile Installer makes Drupal install profiles (distros) extendable like Drupal
 modules and themes.
+
 
 Proof of concept
 ----------------
@@ -35,7 +37,7 @@ Supports:
  - [ ] hook_update_N
  - [ ] auto-generate .install and .profile files for info-file-only profiles. Use
        Features module's trick to declare necessary hooks like this: 
-       ([original](http://cgit.drupalcode.org/features/tree/includes/features.ctools.inc?id=0f77db7a&h=7.x-1.x),
+       [original](http://cgit.drupalcode.org/features/tree/includes/features.ctools.inc?id=0f77db7a&h=7.x-1.x),
        or [updated
        approach](http://cgit.drupalcode.org/features/tree/includes/features.ctools.inc?id=9f4ecc7&h=7.x-2.x)
 
@@ -50,6 +52,7 @@ Utilities:
 Tests:
 
  - [ ] TBD
+
 
 Usage
 -----
@@ -78,12 +81,15 @@ like this:
         remove_dependencies[] = feature_i_customized2
         remove_dependencies[] = feature_i_customized3
 
-Glue
-----
 
-Profile Installer requires a little glue code. Since Drupal isn't installed
-yet when it does it's magic. So it relies on you to invoke a few standard
-install profile hooks, then run the installer.
+Installation & Glue code
+------------------------
+
+Profile Installer requires a little glue code. It relies on you to invoke a few standard
+install profile hooks, then inside those hooks you can hand off control to the
+installer. (Hopefully, when a 1.0.0 version of this project is released, there
+will be a Drush command that generates this for you, per notes under [Proof of
+concept](#proof-of-concept).)
 
 Place Profile Installer in your code base as if it was an install profile here:
 
