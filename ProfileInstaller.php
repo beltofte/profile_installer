@@ -104,6 +104,17 @@ class ProfileInstaller {
   }
 
   /**
+   * @param string $profile_name
+   *   Name of install profile.
+   *
+   * @return string
+   *   Path to directory containing profile.
+   */
+  public static function getPathToProfile($profile_name) {
+    return DRUPAL_ROOT . "/profiles/{$profile_name}";
+  }
+
+  /**
    * Stores absolute path to baseprofile.
    *
    * @throws Exception
@@ -141,6 +152,30 @@ class ProfileInstaller {
   }
 
   /**
+   * @return string
+   *   Path to profile's info file.
+   */
+  public static function getInfoFileForProfile($profile_name) {
+    $path = self::getPathToProfile($profile_name);
+
+    return "{$path}/{$profile_name}.info";
+  }
+
+  /**
+   * @param string $info_file
+   *   Path to profile's info file.
+   *
+   * @return array
+   *   Names of profiles included by profile.
+   */
+  public static function getProfileNamesFromInfoFile($info_file) {
+    $info = drupal_parse_info_file($info_file);
+    $profile_names = (isset($info['profiles'])) ? $info['profiles'] : array();
+
+    return $profile_names;
+  }
+
+  /**
    * Set modules to be enabled during installation of baseprofile.
    *
    * Defaults to detecting all module dependencies declared by baseprofile and
@@ -155,6 +190,105 @@ class ProfileInstaller {
       $modules = $this->removeNeedlesFromHaystack($removals, $dependencies);
     }
     $this->install_profile_modules = $modules;
+  }
+
+  /**
+   * @return string
+   *   Name of top-level install profile, the first to instantiate ProfileInstaller.
+   */
+  public function getBaseProfileName() {
+    return $this->baseprofile_name;
+  }
+
+  /**
+   * @return array
+   *   Modules to be installed by profile.
+   */
+  public function getInstallProfileModules() {
+    return $this->install_profile_modules;
+  }
+
+  /**
+   * Returns dependencies declared in profile and included profiles.
+   *
+   * @param string $profile_name
+   *   Name of profile we're interested in.
+   *
+   * @return array $dependencies
+   *   All project dependencies.
+   */
+  private static function getAllDependenciesForProfile($profile_name) {
+    // Get top-level dependencies for profile.
+    $info_file = self::getInfoFileForProfile($profile_name);
+    $dependencies = self::getDependenciesFromInfoFile($info_file);
+
+    // Recurse. Detect included profiles, and get their dependencies.
+    $profile_names = self::getProfileNamesFromInfoFile($info_file);
+    foreach ($profile_names as $profile_name) {
+      $additional_dependencies = self::getAllDependenciesForProfile($profile_name);
+      $dependencies = array_unique(array_merge($dependencies, $additional_dependencies));
+    }
+
+    return $dependencies;
+  }
+
+  /**
+   * @param string $info_file
+   *   Path to a profile's info file.
+   *
+   * @return array
+   *   Dependencies in info file.
+   */
+  public static function getDependenciesFromInfoFile($info_file) {
+    $info = drupal_parse_info_file($info_file);
+    return isset($info['dependencies']) ? $info['dependencies'] : array();
+  }
+
+  /**
+   * Returns removals declared in profile and included profiles.
+   *
+   * @param string $profile_name
+   *   Name of profile we're interested in.
+   *
+   * @return array $dependencies
+   *   All project dependencies.
+   */
+  private static function getAllDependencyRemovalsForProfile($profile_name) {
+    // Get top-level removals for profile.
+    $info_file = self::getInfoFileForProfile($profile_name);
+    $removals = self::getDependencyRemovalsFromInfoFile($info_file);
+
+    // Recurse. Detect included profiles, and get their dependencies.
+    $profile_names = self::getProfileNamesFromInfoFile($info_file);
+    foreach ($profile_names as $profile_name) {
+      $additional_removals = self::getAllDependencyRemovalsForProfile($profile_name);
+      $removals = array_unique(array_merge($removals, $additional_removals));
+    }
+
+    return $removals;
+  }
+
+  /**
+   * @param string $info_file
+   *   Path to an install profile's info file.
+   *
+   * @return array
+   *   Array of dependencies to be removed (if included by included profiles).
+   */
+  public static function getDependencyRemovalsFromInfoFile($info_file) {
+    $info = drupal_parse_info_file($info_file);
+    return isset($info['remove_dependencies']) ? $info['remove_dependencies'] : array();
+  }
+
+  /**
+   * Searches for and removes items from array.
+   */
+  public function removeNeedlesFromHaystack(array $needles, array $haystack) {
+    foreach ($needles as $needle) {
+      $key = array_search($needle, $haystack);
+      unset($haystack[$key]);
+    }
+    return $haystack;
   }
 
   /**
@@ -181,6 +315,20 @@ class ProfileInstaller {
     }
 
     $this->install_callbacks = $callbacks;
+  }
+
+  /**
+   * Returns array of functions to be invoked on install.
+   *
+   * @return array
+   *   Callbacks for ProfileInstaller::install.
+   */
+  public function getInstallCallbacks() {
+    if (empty($this->install_callbacks)) {
+      $this->setInstallCallbacks();
+    }
+
+    return $this->install_callbacks;
   }
 
   /**
@@ -287,26 +435,6 @@ class ProfileInstaller {
     return $form;
   }
 
-
-  /**
-   * Provides install_state in case it was altered by hook_install_tasks.
-   *
-   * $install_state is passed by reference to hook_install_tasks.
-   * If/When install_state is updated by any implementers of hook_install_tasks
-   * it's stored in ProfileInstaller::$install_state and publicly accessible
-   * via the getter here.
-   *
-   * WARNING: This should only be called by hook_install_tasks. That's the only
-   * place we're tracking current install_state.
-   *
-   * @return array
-   *   $install_state, for profiles implementing hook_install_tasks
-   */
-  public function getInstallState() {
-    return $this->install_state;
-  }
-
-
   /**
    * Invokes alter hooks for included profiles.
    *
@@ -357,6 +485,287 @@ class ProfileInstaller {
   }
 
   /**
+   * Checks whether hooks have been registered to be invoked for this state yet.
+   *
+   * @param array $state
+   *   This can be $form_state or $install_state.
+   *
+   * @return bool
+   */
+  private function isNewStateForHookInvocations(array $state, $hook) {
+    $key = $this->getKeyForArray($state);
+    $is_new = !isset($this->hook_invocations[$hook][$key]);
+    return $is_new;
+  }
+
+  private static function getKeyForArray(array $array) {
+    return md5(serialize($array));
+  }
+
+  /**
+   * Registers hooks to be invoked for a particular install state or form state.
+   *
+   * Keeps track of which hook invocations have been invoked to prevent us from
+   * getting trapped in a loop when more than one profile uses ProfileInstaller.
+   *
+   * @param $hook
+   *   Hook to be invoked.
+   *
+   * @param array $state
+   *   Form state or install state.
+   *
+   * @throws Exception
+   */
+  private function setUpNewHookInvocationsForState($hook, array $state) {
+    $implementations = $this->getHookImplementations($hook);
+    $key = $this->getKeyForArray($state);
+
+    if (isset($this->hook_invocations[$hook][$key])) {
+      throw new Exception ("{$hook} invocations this install_state/form_state have already been set up.");
+    }
+
+    foreach ($implementations as $function => $file) {
+      $this->hook_invocations[$hook][$key][$function]['function'] = $function;
+      $this->hook_invocations[$hook][$key][$function]['file'] = $file;
+      $this->hook_invocations[$hook][$key][$function]['invoked'] = FALSE;
+      $this->hook_invocations[$hook][$key][$function]['key'] = $key;
+      $this->hook_invocations[$hook][$key][$function]['hook'] = $hook;
+    }
+  }
+
+  /**
+   * Get a list of function names implementing specified hook.
+   *
+   * @param string $hook
+   *   Hook we're interested in.
+   *
+   * @return array
+   *   List of hook implementations.
+   */
+  private function getHookImplementations($hook) {
+    $implementations = array();
+
+    if (empty($this->hook_implementations)) {
+      $this->setHookImplementations();
+    }
+
+    if (!empty($this->hook_implementations[$hook])) {
+      foreach ($this->hook_implementations[$hook] as $function => $file) {
+        $implementations[$function] = $file;
+      }
+    }
+
+    return $implementations;
+  }
+
+  /**
+   * Finds supported hooks in included profiles, stores in hook_implementations.
+   */
+  private function setHookImplementations() {
+    $this->hook_implementations = array();
+    $supported_hooks = $this->getSupportedHooks();
+
+    foreach ($supported_hooks as $hook) {
+      foreach ($this->getIncludedProfiles() as $profile_name) {
+        $function = $this->getHookImplementationForProfile($hook, $profile_name);
+        if ($file = $this->findFunctionInProfile($function, $profile_name)) {
+          $this->hook_implementations[$hook][$function] = $file;
+        }
+
+      }
+    }
+  }
+
+  /**
+   * Returns a list of hooks supported by ProfileInstaller.
+   *
+   * These are hooks included profiles can implement, which ProfileInstaller
+   * will support during installation, before Drupal is installed.
+   */
+  private static function getSupportedHooks() {
+    return array(
+      'hook_install_tasks',
+      'hook_install_tasks_alter',
+      'hook_form_install_configure_form_alter',
+    );
+  }
+
+  /**
+   * Generates name of hook for a profile.
+   *
+   * @param string $hook
+   * @param string $profile_name
+   * @return string
+   */
+  public static function getHookImplementationForProfile($hook, $profile_name) {
+    $suffix = substr($hook, 5);
+    return "{$profile_name}_{$suffix}";
+  }
+
+  /**
+   * Finds specified function in install profile.
+   *
+   * @todo Note: Now that files get included elsewhere, this approach to finding
+   * functions may not be bullet proof. I think this is still called first, so
+   * it's still reliable. But over time, as ProfileInstaller evolves, who knows?
+   * Consider refactoring.
+   *
+   * @return string
+   *   Name of file where function lives.
+   */
+  private function findFunctionInProfile($function, $profile_name) {
+    $install_file = $this->getPathToProfileInstallFile($profile_name);
+    $profile_file = $this->getPathToProfileProfileFile($profile_name);
+
+    include_once $install_file;
+    if (function_exists($function)) {
+      return $install_file;
+    }
+
+    include_once $profile_file;
+    if (function_exists($function)) {
+      return $profile_file;
+    }
+
+    return FALSE;
+  }
+
+  /**
+   * @param string $profile_name
+   *   Name of install profile.
+   *
+   * @return string
+   *   Path to profile's install file.
+   */
+  public static function getPathToProfileInstallFile($profile_name) {
+    return self::getPathToProfile($profile_name) . "/{$profile_name}.install";
+  }
+
+  /**
+   * @param string $profile_name
+   *   Name of install profile.
+   *
+   * @return string
+   *   Path to profile's profile file.
+   */
+  public static function getPathToProfileProfileFile($profile_name) {
+    return self::getPathToProfile($profile_name) . "/{$profile_name}.profile";
+  }
+
+
+
+  /**
+   * Get hook implementations to be invoked for designated state.
+   *
+   * hook_invocations keeps track of hooks invoked per install state and form
+   * state so we don't invoke the same hook implementation multiple times per state.
+   *
+   * @param string $hook
+   *   Hook we want info about.
+   *
+   * @param array $state
+   *   Install state or form state.
+   *
+   * @return array
+   *  @see ProfileInstaller::setUpNewHookInvocationsForState
+   */
+  private function getHookInvocationsForState($hook, array $state) {
+    $key = $this->getKeyForArray($state);
+    $invocations = !empty($this->hook_invocations[$hook][$key]) ? $this->hook_invocations[$hook][$key] : array();
+    return $invocations;
+  }
+
+  /**
+   * Determines whether hook has been invoked yet.
+   *
+   * @param array $implementation_info
+   *   An single hook invocation from the ProfileInstaller::hook_invocations
+   *   array. Keys:
+   *   - function
+   *   - file
+   *   - invoked
+   *   - key
+   *   - hook
+   *  @see ProfileInstaller::setUpNewHookInvocationsForState
+   *
+   * @return bool
+   *
+   * @throws Exception
+   */
+  private function hookImplementationHasNotBeenInvoked($implementation_info) {
+    $hook = $implementation_info['hook'];
+    $key = $implementation_info['key'];
+    $function = $implementation_info['function'];
+
+    if (!empty($this->hook_invocations[$hook][$key][$function])) {
+      $has_been_invoked = $this->hook_invocations[$hook][$key][$function]['invoked'];
+      return !$has_been_invoked;
+    }
+
+    // If we get to here, something has gone wrong.
+    throw new Exception('Something went wrong. $implementation_info does not include the info needed or hook was not set up for state properly (see ProfileInstaller::setUpNewHookInvocationsForState).');
+  }
+
+  /**
+   * Returns function name for hook implementation.
+   *
+   * @param array $implementation_info
+   *  @see ProfileInstaller::setUpNewHookInvocationsForState
+   * 
+   */
+  private function getHookImplementation(array $implementation_info) {
+    return $implementation_info['function'];
+  }
+
+  /**
+   * Get absolute path to file including hook implementation.
+   *
+   * @param array $implementation_info
+   *  @see ProfileInstaller::setUpNewHookInvocationsForState
+   *
+   * @return string
+   */
+  private function getFileWithHookImplementation(array $implementation_info) {
+    return $implementation_info['file'];
+  }
+
+  /**
+   * hook_invocations keeps track of hooks invoked. Update hook "invoked".
+   *
+   * @param array $implementation_info
+   *  @see ProfileInstaller::setUpNewHookInvocationsForState
+   */
+  private function updateHookImplementationStatusToInvoked(array $implementation_info) {
+    $key = $implementation_info['key'];
+    $function = $implementation_info['function'];
+    $hook = $implementation_info['hook'];
+
+    $this->hook_invocations[$hook][$key][$function]['invoked'] = TRUE;
+  }
+
+  /**
+   * Provides install_state in case it was altered by hook_install_tasks.
+   *
+   * $install_state is passed by reference to hook_install_tasks.
+   * If/When install_state is updated by any implementers of hook_install_tasks
+   * it's stored in ProfileInstaller::$install_state and publicly accessible
+   * via the getter here.
+   *
+   * WARNING: This should only be called by hook_install_tasks. That's the only
+   * place we're tracking current install_state.
+   *
+   * @return array
+   *   $install_state, for profiles implementing hook_install_tasks
+   */
+  public function getInstallState() {
+    return $this->install_state;
+  }
+
+  /**
+   * Not used. Reorganize, refactor, or remove. =================================
+   */
+
+  /**
    * Invokes hooks before commands like module_invoke are available.
    *
    * NOTE: As of 10/24/14, this NOT actually used anywhere. Alter hooks--
@@ -365,7 +774,7 @@ class ProfileInstaller {
    * hook_install_tasks and hook_install both have their own special uses that
    * make this approach impractical for them.
    *
-   * @todo If nobody uses this soon, phase it out or refactor it to make it relevant.
+   * @todo If nobody uses this soon, remove or refactor it to make it relevant.
    *
    * @param $hook
    *   Hook being invoked.
@@ -412,240 +821,10 @@ class ProfileInstaller {
     return $results;
   }
 
-  /**
-   * Checks whether hooks have been registered to be invoked for this state yet.
-   *
-   * @param array $state
-   *   This can be $form_state or $install_state.
-   *
-   * @return bool
-   */
-  private function isNewStateForHookInvocations(array $state, $hook) {
-    $key = $this->getKeyForArray($state);
-    $is_new = !isset($this->hook_invocations[$hook][$key]);
-    return $is_new;
-  }
-
-  /**
-   * Registers hooks to be invoked for a particular install state or form state.
-   *
-   * Keeping track of hook invocations prevents us from getting trapped in a
-   * loop when more than one profile uses ProfileInstaller.
-   *
-   * @param $hook
-   *   Hook to be invoked.
-   *
-   * @param array $state
-   *   Form state or install state.
-   *
-   * @throws Exception
-   */
-  private function setUpNewHookInvocationsForState($hook, array $state) {
-    $implementations = $this->getHookImplementations($hook);
-    $key = $this->getKeyForArray($state);
-
-    if (isset($this->hook_invocations[$hook][$key])) {
-      throw new Exception ("{$hook} invocations this install_state/form_state have already been set up.");
-    }
-
-    foreach ($implementations as $function => $file) {
-      $this->hook_invocations[$hook][$key][$function]['function'] = $function;
-      $this->hook_invocations[$hook][$key][$function]['file'] = $file;
-      $this->hook_invocations[$hook][$key][$function]['invoked'] = FALSE;
-      $this->hook_invocations[$hook][$key][$function]['key'] = $key;
-      $this->hook_invocations[$hook][$key][$function]['hook'] = $hook;
-    }
-  }
-
-  /**
-   * Generates name of hook for a profile.
-   *
-   * @param string $hook
-   * @param string $profile_name
-   * @return string
-   */
-  public static function getHookImplementationForProfile($hook, $profile_name) {
-    $suffix = substr($hook, 5);
-    return "{$profile_name}_{$suffix}";
-  }
-
-  /**
-   * Determines whether hook has been invoked yet.
-   *
-   * @param array $implementation_info
-   *   An single hook invocation from the ProfileInstaller::hook_invocations
-   *   array. Keys:
-   *   - function
-   *   - file
-   *   - invoked
-   *   - key
-   *   - hook
-   *  @see ProfileInstaller::setUpNewHookInvocationsForState
-   *
-   * @return bool
-   *
-   * @throws Exception
-   */
-  private function hookImplementationHasNotBeenInvoked($implementation_info) {
-    $hook = $implementation_info['hook'];
-    $key = $implementation_info['key'];
-    $function = $implementation_info['function'];
-
-    if (!empty($this->hook_invocations[$hook][$key][$function])) {
-      $has_been_invoked = $this->hook_invocations[$hook][$key][$function]['invoked'];
-      return !$has_been_invoked;
-    }
-
-    // If we get to here, something has gone wrong.
-    throw new Exception('Something went wrong. $implementation_info does not include the info needed or hook was not set up for state properly (see ProfileInstaller::setUpNewHookInvocationsForState).');
-  }
-
-  /**
-   * hook_invocations keeps track of hooks invoked. Update hook "invoked".
-   *
-   * @param array $implementation_info
-   *  @see ProfileInstaller::setUpNewHookInvocationsForState
-   */
-  private function updateHookImplementationStatusToInvoked(array $implementation_info) {
-    $key = $implementation_info['key'];
-    $function = $implementation_info['function'];
-    $hook = $implementation_info['hook'];
-
-    $this->hook_invocations[$hook][$key][$function]['invoked'] = TRUE;
-  }
-
-  /**
-   * Get absolute path to file including hook implementation.
-   *
-   * @param array $implementation_info
-   *  @see ProfileInstaller::setUpNewHookInvocationsForState
-   *
-   * @return string
-   */
-  private function getFileWithHookImplementation(array $implementation_info) {
-    return $implementation_info['file'];
-  }
-
-  private function getHookImplementation(array $implementation_info) {
-    return $implementation_info['function'];
-  }
-
-  /**
-   * Get hook implementations to be invoked for designated state.
-   *
-   * hook_invocations keeps track of hooks invoked per install state and form
-   * state so we don't invoke the same hook implementation multiple times per state.
-   *
-   * @param string $hook
-   *   Hook we want info about.
-   *
-   * @param array $state
-   *   Install state or form state.
-   *
-   * @return array
-   *  @see ProfileInstaller::setUpNewHookInvocationsForState
-   */
-  private function getHookInvocationsForState($hook, array $state) {
-    $key = $this->getKeyForArray($state);
-    $invocations = !empty($this->hook_invocations[$hook][$key]) ? $this->hook_invocations[$hook][$key] : array();
-    return $invocations;
-  }
-
-  /**
-   * Get a list of function names implementing specified hook.
-   *
-   * @param string $hook
-   *   Hook we're interested in.
-   *
-   * @return array
-   *   List of hook implementations.
-   */
-  private function getHookImplementations($hook) {
-    $implementations = array();
-
-    if (empty($this->hook_implementations)) {
-      $this->setHookImplementations();
-    }
-
-    if (!empty($this->hook_implementations[$hook])) {
-      foreach ($this->hook_implementations[$hook] as $function => $file) {
-        $implementations[$function] = $file;
-      }
-    }
-
-    return $implementations;
-  }
-
-  private function setHookImplementations() {
-    $this->hook_implementations = array();
-    $supported_hooks = $this->getSupportedHooks();
-
-    foreach ($supported_hooks as $hook) {
-      foreach ($this->getIncludedProfiles() as $profile_name) {
-        $function = $this->getHookImplementationForProfile($hook, $profile_name);
-        if ($file = $this->findFunctionInProfile($function, $profile_name)) {
-          $this->hook_implementations[$hook][$function] = $file;
-        }
-
-      }
-    }
-  }
-
   public function removeInstallProfileModules(array $modules) {
     $dependencies = $this->getInstallProfileModules();
     $dependencies = $this->removeNeedlesFromHaystack($modules, $dependencies);
     $this->setInstallProfileModules($dependencies);
-  }
-
-  public function removeNeedlesFromHaystack(array $needles, array $haystack) {
-    foreach ($needles as $needle) {
-      $key = array_search($needle, $haystack);
-      unset($haystack[$key]);
-    }
-    return $haystack;
-  }
-
-  private function findFunctionInProfile($function, $profile_name) {
-    $install_file = $this->getPathToProfileInstallFile($profile_name);
-    $profile_file = $this->getPathToProfileProfileFile($profile_name);
-
-    include_once $install_file;
-    if (function_exists($function)) {
-      return $install_file;
-    }
-
-    include_once $profile_file;
-    if (function_exists($function)) {
-      return $profile_file;
-    }
-
-    return FALSE;
-  }
-
-  /**
-   * Getters and setters. ======================================================
-   */
-
-  private static function getSupportedHooks() {
-    return array(
-      'hook_install_tasks',
-      'hook_install_tasks_alter',
-      'hook_form_install_configure_form_alter',
-    );
-  }
-
-  private static function getKeyForArray(array $array) {
-    return md5(serialize($array));
-  }
-
-
-
-  public function getInstallCallbacks() {
-    if (empty($this->install_callbacks)) {
-      $this->setInstallCallbacks();
-    }
-
-    return $this->install_callbacks;
   }
 
   public static function getDependenciesForProfilesIncludedByProfile($baseprofile_name) {
@@ -663,83 +842,6 @@ class ProfileInstaller {
   function setInstallProfileDependencyRemovals() {
     $removals = $this->getAllDependencyRemovalsForProfile($this->getBaseProfileName());
     $this->install_profile_dependency_removals = $removals;
-  }
-
-
-
-  public function getInstallProfileModules() {
-    return $this->install_profile_modules;
-  }
-
-  private static function getAllDependenciesForProfile($profile_name) {
-    // Get top-level dependencies for profile.
-    $info_file = self::getInfoFileForProfile($profile_name);
-    $dependencies = self::getDependenciesFromInfoFile($info_file);
-
-    // Recurse. Detect included profiles, and get their dependencies.
-    $profile_names = self::getProfileNamesFromInfoFile($info_file);
-    foreach ($profile_names as $profile_name) {
-      $additional_dependencies = self::getAllDependenciesForProfile($profile_name);
-      $dependencies = array_unique(array_merge($dependencies, $additional_dependencies));
-    }
-
-    return $dependencies;
-  }
-
-  private static function getAllDependencyRemovalsForProfile($profile_name) {
-    // Get top-level removals for profile.
-    $info_file = self::getInfoFileForProfile($profile_name);
-    $removals = self::getDependencyRemovalsFromInfoFile($info_file);
-
-    // Recurse. Detect included profiles, and get their dependencies.
-    $profile_names = self::getProfileNamesFromInfoFile($info_file);
-    foreach ($profile_names as $profile_name) {
-      $additional_removals = self::getAllDependencyRemovalsForProfile($profile_name);
-      $removals = array_unique(array_merge($removals, $additional_removals));
-    }
-
-    return $removals;
-  }
-
-  public static function getInfoFileForProfile($profile_name) {
-    $path = self::getPathToProfile($profile_name);
-
-    return "{$path}/{$profile_name}.info";
-  }
-
-  public static function getDependenciesFromInfoFile($info_file) {
-    $info = drupal_parse_info_file($info_file);
-    return isset($info['dependencies']) ? $info['dependencies'] : array();
-  }
-
-  public static function getDependencyRemovalsFromInfoFile($info_file) {
-    $info = drupal_parse_info_file($info_file);
-    return isset($info['remove_dependencies']) ? $info['remove_dependencies'] : array();
-  }
-
-
-  public static function getProfileNamesFromInfoFile($info_file) {
-    $info = drupal_parse_info_file($info_file);
-    $profile_names = (isset($info['profiles'])) ? $info['profiles'] : array();
-
-    return $profile_names;
-  }
-
-
-  public static function getPathToProfile($profile_name) {
-    return DRUPAL_ROOT . "/profiles/{$profile_name}";
-  }
-
-  public static function getPathToProfileInstallFile($profile_name) {
-    return self::getPathToProfile($profile_name) . "/{$profile_name}.install";
-  }
-
-  public static function getPathToProfileProfileFile($profile_name) {
-    return self::getPathToProfile($profile_name) . "/{$profile_name}.profile";
-  }
-
-  public function getBaseProfileName() {
-    return $this->baseprofile_name;
   }
 
   public function getBaseProfilePath() {
