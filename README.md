@@ -47,6 +47,10 @@ Utilities:
  - [ ] `drush profile-installer-enforce-dependencies`, disable/enable modules to
         enforce consistent profile state with dependencies declared in code
 
+Tests:
+
+ - [ ] TBD
+
 Usage
 -----
 

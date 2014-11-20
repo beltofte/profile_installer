@@ -287,26 +287,6 @@ class ProfileInstaller {
     return $form;
   }
 
-
-  /**
-   * Provides install_state in case it was altered by hook_install_tasks.
-   *
-   * $install_state is passed by reference to hook_install_tasks.
-   * If/When install_state is updated by any implementers of hook_install_tasks
-   * it's stored in ProfileInstaller::$install_state and publicly accessible
-   * via the getter here.
-   *
-   * WARNING: This should only be called by hook_install_tasks. That's the only
-   * place we're tracking current install_state.
-   *
-   * @return array
-   *   $install_state, for profiles implementing hook_install_tasks
-   */
-  public function getInstallState() {
-    return $this->install_state;
-  }
-
-
   /**
    * Invokes alter hooks for included profiles.
    *
@@ -355,6 +335,96 @@ class ProfileInstaller {
 
     return $data;
   }
+
+  /**
+   * Checks whether hooks have been registered to be invoked for this state yet.
+   *
+   * @param array $state
+   *   This can be $form_state or $install_state.
+   *
+   * @return bool
+   */
+  private function isNewStateForHookInvocations(array $state, $hook) {
+    $key = $this->getKeyForArray($state);
+    $is_new = !isset($this->hook_invocations[$hook][$key]);
+    return $is_new;
+  }
+
+  private static function getKeyForArray(array $array) {
+    return md5(serialize($array));
+  }
+
+  /**
+   * Registers hooks to be invoked for a particular install state or form state.
+   *
+   * Keeping track of hook invocations prevents us from getting trapped in a
+   * loop when more than one profile uses ProfileInstaller.
+   *
+   * @param $hook
+   *   Hook to be invoked.
+   *
+   * @param array $state
+   *   Form state or install state.
+   *
+   * @throws Exception
+   */
+  private function setUpNewHookInvocationsForState($hook, array $state) {
+    $implementations = $this->getHookImplementations($hook);
+    $key = $this->getKeyForArray($state);
+
+    if (isset($this->hook_invocations[$hook][$key])) {
+      throw new Exception ("{$hook} invocations this install_state/form_state have already been set up.");
+    }
+
+    foreach ($implementations as $function => $file) {
+      $this->hook_invocations[$hook][$key][$function]['function'] = $function;
+      $this->hook_invocations[$hook][$key][$function]['file'] = $file;
+      $this->hook_invocations[$hook][$key][$function]['invoked'] = FALSE;
+      $this->hook_invocations[$hook][$key][$function]['key'] = $key;
+      $this->hook_invocations[$hook][$key][$function]['hook'] = $hook;
+    }
+  }
+
+  /**
+   * Get hook implementations to be invoked for designated state.
+   *
+   * hook_invocations keeps track of hooks invoked per install state and form
+   * state so we don't invoke the same hook implementation multiple times per state.
+   *
+   * @param string $hook
+   *   Hook we want info about.
+   *
+   * @param array $state
+   *   Install state or form state.
+   *
+   * @return array
+   *  @see ProfileInstaller::setUpNewHookInvocationsForState
+   */
+  private function getHookInvocationsForState($hook, array $state) {
+    $key = $this->getKeyForArray($state);
+    $invocations = !empty($this->hook_invocations[$hook][$key]) ? $this->hook_invocations[$hook][$key] : array();
+    return $invocations;
+  }
+
+  /**
+   * Provides install_state in case it was altered by hook_install_tasks.
+   *
+   * $install_state is passed by reference to hook_install_tasks.
+   * If/When install_state is updated by any implementers of hook_install_tasks
+   * it's stored in ProfileInstaller::$install_state and publicly accessible
+   * via the getter here.
+   *
+   * WARNING: This should only be called by hook_install_tasks. That's the only
+   * place we're tracking current install_state.
+   *
+   * @return array
+   *   $install_state, for profiles implementing hook_install_tasks
+   */
+  public function getInstallState() {
+    return $this->install_state;
+  }
+
+
 
   /**
    * Invokes hooks before commands like module_invoke are available.
@@ -412,50 +482,7 @@ class ProfileInstaller {
     return $results;
   }
 
-  /**
-   * Checks whether hooks have been registered to be invoked for this state yet.
-   *
-   * @param array $state
-   *   This can be $form_state or $install_state.
-   *
-   * @return bool
-   */
-  private function isNewStateForHookInvocations(array $state, $hook) {
-    $key = $this->getKeyForArray($state);
-    $is_new = !isset($this->hook_invocations[$hook][$key]);
-    return $is_new;
-  }
 
-  /**
-   * Registers hooks to be invoked for a particular install state or form state.
-   *
-   * Keeping track of hook invocations prevents us from getting trapped in a
-   * loop when more than one profile uses ProfileInstaller.
-   *
-   * @param $hook
-   *   Hook to be invoked.
-   *
-   * @param array $state
-   *   Form state or install state.
-   *
-   * @throws Exception
-   */
-  private function setUpNewHookInvocationsForState($hook, array $state) {
-    $implementations = $this->getHookImplementations($hook);
-    $key = $this->getKeyForArray($state);
-
-    if (isset($this->hook_invocations[$hook][$key])) {
-      throw new Exception ("{$hook} invocations this install_state/form_state have already been set up.");
-    }
-
-    foreach ($implementations as $function => $file) {
-      $this->hook_invocations[$hook][$key][$function]['function'] = $function;
-      $this->hook_invocations[$hook][$key][$function]['file'] = $file;
-      $this->hook_invocations[$hook][$key][$function]['invoked'] = FALSE;
-      $this->hook_invocations[$hook][$key][$function]['key'] = $key;
-      $this->hook_invocations[$hook][$key][$function]['hook'] = $hook;
-    }
-  }
 
   /**
    * Generates name of hook for a profile.
@@ -530,26 +557,6 @@ class ProfileInstaller {
     return $implementation_info['function'];
   }
 
-  /**
-   * Get hook implementations to be invoked for designated state.
-   *
-   * hook_invocations keeps track of hooks invoked per install state and form
-   * state so we don't invoke the same hook implementation multiple times per state.
-   *
-   * @param string $hook
-   *   Hook we want info about.
-   *
-   * @param array $state
-   *   Install state or form state.
-   *
-   * @return array
-   *  @see ProfileInstaller::setUpNewHookInvocationsForState
-   */
-  private function getHookInvocationsForState($hook, array $state) {
-    $key = $this->getKeyForArray($state);
-    $invocations = !empty($this->hook_invocations[$hook][$key]) ? $this->hook_invocations[$hook][$key] : array();
-    return $invocations;
-  }
 
   /**
    * Get a list of function names implementing specified hook.
@@ -634,9 +641,6 @@ class ProfileInstaller {
     );
   }
 
-  private static function getKeyForArray(array $array) {
-    return md5(serialize($array));
-  }
 
 
 
