@@ -6,29 +6,28 @@
 require_once DRUPAL_ROOT . '/profiles/profile_installer/ProfileInstaller.php';
 
 /**
- * @param string $profile_name
+ * Install profiles included by top-level profile.
  *
- * @return array
- *   Array of install tasks, @see hook_install_tasks.
+ * The callback below is registered with hook_install_tasks by ProfileInstaller.
  */
-function profile_installer_get_install_tasks($profile_name) {
-  $installer = ProfileInstaller::getInstallerForProfile($profile_name);
-  return $installer->getInstallTasks();
+function profile_installer_install_profiles(&$install_state) {
+  $installer = ProfileInstaller::getInstallerForProfile();
+  $installer->install();
 }
 
 /**
- * Callback for task to install profiles' dependencies.
+ * Install profile dependencies. Replaces core install_profile_modules callback.
  *
- * Core's hook_install_tasks does not support methods of objects, this has to be
- * a standalone function.
+ * Most of the code below is copied from install_profile_modules() in
+ * install.core.inc. We just merge our own list of modules from profiles' info
+ * files to populate the modules list.
  *
- * The core logic here is copied from install_profile_modules() in install.core.inc.
- * We just merge our own list of modules from profiles' info files to populate
- * the modules list.
+ * Core's hook_install_tasks does not support methods of objects as callbacks.
+ * The callback provided below has to live outside the ProfileInstaller class.
  */
 function profile_installer_install_modules(&$install_state) {
   $installer = ProfileInstaller::getInstallerForProfile();
-  $modules = $installer->getInstallProfileModules();
+  $modules = $installer->profile->install_profile_modules;
 
   // Get modules core requires and stores in install_profile_modules variable.
   $more_modules = variable_get('install_profile_modules', array());
@@ -77,7 +76,3 @@ function profile_installer_install_modules(&$install_state) {
   return $batch;
 }
 
-function profile_installer_install_profiles(&$install_state) {
-  $installer = ProfileInstaller::getInstallerForProfile();
-  $installer->install();
-}
