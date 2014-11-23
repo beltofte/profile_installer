@@ -477,21 +477,4 @@ class ProfileInstaller {
     return $this->install_callbacks;
   }
 
-  public static function getDependenciesForProfilesIncludedByProfile($baseprofile_name) {
-    $installer = new self($baseprofile_name);
-    return $installer->getIncludedProfilesDependencies();
-  }
-
-  function getInstallProfileDependencyRemovals() {
-    if (empty($this->install_profile_dependency_removals)) {
-      $this->setInstallProfileDependencyRemovals();
-    }
-    return $this->install_profile_dependency_removals;
-  }
-
-  function setInstallProfileDependencyRemovals() {
-    $removals = $this->getDependencyRemovalsForProfile($this->getBaseProfileName());
-    $this->install_profile_dependency_removals = $removals;
-  }
-
 }

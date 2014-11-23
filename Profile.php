@@ -28,9 +28,6 @@ class Profile {
   // name is reused here for consistency.
   public $install_profile_modules;
 
-  // Dependencies to be removed, specified by included profiles.
-  public $install_profile_dependency_removals;
-
   public function __construct($baseprofile_name, ProfileUtility $profile_utility) {
     $this->profile_utility = $profile_utility;
     $this->setBaseProfileName($baseprofile_name);
