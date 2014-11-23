@@ -455,19 +455,11 @@ class ProfileInstaller {
     return $implementation_info['function'];
   }
 
-
   public function removeInstallProfileModules(array $modules) {
     $dependencies = $this->getInstallProfileModules();
     $dependencies = $this->removeNeedlesFromHaystack($modules, $dependencies);
     $this->setInstallProfileModules($dependencies);
   }
-
-
-
-  /**
-   * Getters and setters. ======================================================
-   */
-
 
   public function getInstallCallbacks() {
     if (empty($this->install_callbacks)) {

@@ -93,5 +93,4 @@ class Profile {
     $this->hook_implementations = $hook_implementations;
   }
 
-
 }
