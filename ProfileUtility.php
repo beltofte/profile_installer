@@ -35,8 +35,15 @@ class ProfileUtility {
    * @return array
    */
   public static function getIncludedProfiles($profile_name) {
+    // Get top-level profiles included by profile.
     $info_file = self::getInfoFileForProfile($profile_name);
     $included_profiles = self::getProfileNamesFromInfoFile($info_file);
+
+    // Recurse. Detect included profiles.
+    foreach ($included_profiles as $profile_name) {
+      $additional_profiles = self::getIncludedProfiles($profile_name);
+      $included_profiles = array_unique(array_merge($included_profiles, $additional_profiles));
+    }
 
     return $included_profiles;
   }
