@@ -30,14 +30,23 @@ class ProfileUtility {
   /**
    * Get profiles included in baseprofile's info file.
    *
-   * @TOOD Add recursion, included_profiles property should include profiles included by included profiles (see getAllDependenciesForProfile).
+   * @param string $profile_name
+   *   Name of profile we're querying.
+   *
+   * @param bool $recurse
+   *   If TRUE, recursively detect included profiles.
    *
    * @return array
    */
-  public static function getIncludedProfiles($profile_name) {
+  public static function getIncludedProfiles($profile_name, $recurse = TRUE) {
     // Get top-level profiles included by profile.
     $info_file = self::getInfoFileForProfile($profile_name);
     $included_profiles = self::getProfileNamesFromInfoFile($info_file);
+
+    if (!$recurse) {
+      // Only look up profiles included in top-level info file. We're done.
+      return $included_profiles;
+    }
 
     // Recurse. Detect included profiles.
     foreach ($included_profiles as $profile_name) {
@@ -61,15 +70,33 @@ class ProfileUtility {
     return $profile_names;
   }
 
-  public static function getAllDependenciesForProfile($profile_name) {
+
+  /**
+   * Get dependencies (modules, themes) of profile.
+   *
+   * @param string $profile_name
+   *   Profile to query.
+   *
+   * @param bool $recurse
+   *   If TRUE, recursively detect dependencies for included profiles.
+   *
+   * @return array
+   *   Dependencies (modules, themes).
+   */
+  public static function getDependenciesForProfile($profile_name, $recurse = TRUE) {
     // Get top-level dependencies for profile.
     $info_file = self::getInfoFileForProfile($profile_name);
     $dependencies = self::getDependenciesFromInfoFile($info_file);
 
+    if (!$recurse) {
+      // Only look up dependencies in top-level profile's info file. We're done.
+      return $dependencies;
+    }
+
     // Recurse. Detect included profiles, and get their dependencies.
     $profile_names = self::getProfileNamesFromInfoFile($info_file);
     foreach ($profile_names as $profile_name) {
-      $additional_dependencies = self::getAllDependenciesForProfile($profile_name);
+      $additional_dependencies = self::getDependenciesForProfile($profile_name);
       $dependencies = array_unique(array_merge($dependencies, $additional_dependencies));
     }
 
@@ -81,15 +108,32 @@ class ProfileUtility {
     return isset($info['dependencies']) ? $info['dependencies'] : array();
   }
 
-  public static function getAllDependencyRemovalsForProfile($profile_name) {
+  /**
+   * Get dependencies to remove from included profiles.
+   *
+   * @param string $profile_name
+   *   Profile to query.
+   *
+   * @param bool $recurse
+   *   If TRUE, recursively detect dependency removals.
+   *
+   * @return array
+   *   Dependencies to be removed.
+   */
+  public static function getDependencyRemovalsForProfile($profile_name, $recurse = TRUE) {
     // Get top-level removals for profile.
     $info_file = self::getInfoFileForProfile($profile_name);
     $removals = self::getDependencyRemovalsFromInfoFile($info_file);
 
+    if (!$recurse) {
+      // Only look up removals from top-level info file. We're done.
+      return $removals;
+    }
+
     // Recurse. Detect included profiles, and get their dependencies.
     $profile_names = self::getProfileNamesFromInfoFile($info_file);
     foreach ($profile_names as $profile_name) {
-      $additional_removals = self::getAllDependencyRemovalsForProfile($profile_name);
+      $additional_removals = self::getDependencyRemovalsForProfile($profile_name);
       $removals = array_unique(array_merge($removals, $additional_removals));
     }
 

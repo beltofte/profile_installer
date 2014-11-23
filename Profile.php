@@ -82,8 +82,8 @@ class Profile {
    */
   private function setInstallProfileModules($modules = array()) {
     if (empty($modules) || empty($this->install_profile_modules)) {
-      $dependencies = $this->profile_utility->getAllDependenciesForProfile( $this->baseprofile_name );
-      $removals = $this->profile_utility->getAllDependencyRemovalsForProfile( $this->baseprofile_name );
+      $dependencies = $this->profile_utility->getDependenciesForProfile( $this->baseprofile_name );
+      $removals = $this->profile_utility->getDependencyRemovalsForProfile( $this->baseprofile_name );
       $modules = $this->profile_utility->removeNeedlesFromHaystack($removals, $dependencies);
     }
     $this->install_profile_modules = $modules;

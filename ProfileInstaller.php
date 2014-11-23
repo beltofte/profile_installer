@@ -490,7 +490,7 @@ class ProfileInstaller {
   }
 
   function setInstallProfileDependencyRemovals() {
-    $removals = $this->getAllDependencyRemovalsForProfile($this->getBaseProfileName());
+    $removals = $this->getDependencyRemovalsForProfile($this->getBaseProfileName());
     $this->install_profile_dependency_removals = $removals;
   }
 
