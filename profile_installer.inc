@@ -28,7 +28,7 @@ function profile_installer_get_install_tasks($profile_name) {
  */
 function profile_installer_install_modules(&$install_state) {
   $installer = ProfileInstaller::getInstallerForProfile();
-  $modules = $installer->getInstallProfileModules();
+  $modules = $installer->profile->install_profile_modules;
 
   // Get modules core requires and stores in install_profile_modules variable.
   $more_modules = variable_get('install_profile_modules', array());
