@@ -8,13 +8,14 @@
  * Profile is a data transfer object with info about the profile being installed.
  */
 class Profile {
-  //
-  private $profile_utility;
-
-  // First profile to instantiate ProfileInstaller (the one selected via Drupal
-  // GUI or specified by `drush site-install <profile>` command) is the "baseprofile".
+  // Name of profile being installed. (The first to instantiate installer.)
   public $profile_name;
+
+  // Path to profile being installed.
   public $profile_path;
+
+  // Utility for finding info about profile.
+  private $profile_utility;
 
   // Keep track of profiles included by baseprofile or included profiles.
   public $included_profiles;
