@@ -8,7 +8,32 @@ require_once __DIR__ . '/Profile.php';
 require_once __DIR__ . '/ProfileUtility.php';
 
 /**
- * ProfileInstaller is the controller class for managing profile installation.
+ * ProfileInstaller installs profiles included by the top-level profile.
+ *
+ * This is as close as we can get to a controller class without refactoring core.
+ * It's not really accurate to describe this as the controller. The controller
+ * is really the top-level profile which instantiates ProfileInstaller. It works
+ * like this: As Drupal invokes various install hooks, the top-level profile gives
+ * ProfileInstaller a chance to include other profiles. The basic
+ * flow (which may vary depending on tasks and alters added by profiles) is this:
+ *
+ * 1. myprofile_install_tasks calls ProfileInstaller::getInstallTasks, registers
+ *    profile_installer_install_profiles and any other tasks provided by included
+ *    profiles
+ *
+ * 2. myprofile_install_tasks_alter calls ProfileInstaller::alterInstallTasks,
+ *    replaces core profile_install_modules with profile_installer_install_modules
+ *    and gives included profiles an opportunit to alter tasks
+ *
+ * 3. profile_installer_install_modules installs dependencies
+ *
+ * 4. myprofile_install, top-level profile's install hook runs
+ *
+ * 5. myprofile_form_install_configure_form_alter calls
+ *    ProfileInstaller::alterInstallConfigureForm and gives included profiles an
+ *    opportunity to alter install_configure_form
+ *
+ * 6. profile_installer_install_profiles runs included profiles' install hooks
  */
 class ProfileInstaller {
 
