@@ -13,8 +13,8 @@ class Profile {
 
   // First profile to instantiate ProfileInstaller (the one selected via Drupal
   // GUI or specified by `drush site-install <profile>` command) is the "baseprofile".
-  public $baseprofile_name;
-  public $baseprofile_path;
+  public $profile_name;
+  public $profile_path;
 
   // Keep track of profiles included by baseprofile or included profiles.
   public $included_profiles;
@@ -27,10 +27,10 @@ class Profile {
   // name is reused here for consistency.
   public $install_profile_modules;
 
-  public function __construct($baseprofile_name, ProfileUtility $profile_utility) {
+  public function __construct($profile_name, ProfileUtility $profile_utility) {
     $this->profile_utility = $profile_utility;
-    $this->setBaseProfileName($baseprofile_name);
-    $this->setBaseProfilePath();
+    $this->setProfileName($profile_name);
+    $this->setProfilePath();
     $this->setIncludedProfiles();
     $this->setInstallProfileModules();
     $this->setHookImplementations();
@@ -39,11 +39,11 @@ class Profile {
   /**
    * Keeps track of parent profile, the one instantiating ProfileInstaller.
    *
-   * @param string $baseprofile_name
+   * @param string $profile_name
    */
-  private function setBaseProfileName($baseprofile_name) {
-    if ($this->profile_utility->profileExists($baseprofile_name, TRUE)) {
-      $this->baseprofile_name = $baseprofile_name;
+  private function setProfileName($profile_name) {
+    if ($this->profile_utility->profileExists($profile_name, TRUE)) {
+      $this->profile_name = $profile_name;
     }
   }
 
@@ -52,18 +52,18 @@ class Profile {
    *
    * @throws Exception
    */
-  private function setBaseProfilePath() {
-    if (empty($this->baseprofile_name)) {
-      throw new Exception("Cannot set baseprofile_path if baseprofile_name is empty.");
+  private function setProfilePath() {
+    if (empty($this->profile_name)) {
+      throw new Exception("Cannot set profile_path if profile_name is empty.");
     }
-    $this->baseprofile_path = $this->profile_utility->getPathToProfile($this->baseprofile_name);
+    $this->profile_path = $this->profile_utility->getPathToProfile($this->profile_name);
   }
 
   /**
    * Detects profiles included by baseprofile and sets included_profiles property.
    */
   private function setIncludedProfiles() {
-    $profiles = $this->profile_utility->getIncludedProfiles($this->baseprofile_name);
+    $profiles = $this->profile_utility->getIncludedProfiles($this->profile_name);
     // @todo Add sorting (alpha, weight, etc.).
     $this->included_profiles = $profiles;
   }
@@ -78,15 +78,15 @@ class Profile {
    */
   private function setInstallProfileModules($modules = array()) {
     if (empty($modules) || empty($this->install_profile_modules)) {
-      $dependencies = $this->profile_utility->getDependenciesForProfile( $this->baseprofile_name );
-      $removals = $this->profile_utility->getDependencyRemovalsForProfile( $this->baseprofile_name );
+      $dependencies = $this->profile_utility->getDependenciesForProfile( $this->profile_name );
+      $removals = $this->profile_utility->getDependencyRemovalsForProfile( $this->profile_name );
       $modules = $this->profile_utility->removeNeedlesFromHaystack($removals, $dependencies);
     }
     $this->install_profile_modules = $modules;
   }
 
   private function setHookImplementations() {
-    $profile_name = $this->baseprofile_name;
+    $profile_name = $this->profile_name;
     $hook_implementations = $this->profile_utility->findHookImplementationsInProfile($profile_name);
 
     $this->hook_implementations = $hook_implementations;
