@@ -39,12 +39,6 @@ class InstallUtility {
    * @throws Exception
    */
   public function invokeAlterOnDataForState($hook, &$data, $state) {
-    // Hooks should only be invoked once per install state or form state,
-    // otherwise it's easy to get trapped in a loop.
-    if ($this->isNewStateForHookInvocations($state, $hook)) {
-      $this->setUpNewHookInvocationsForState($hook, $state);
-    }
-
     // Get invocations which should be called for current state.
     $invocations = $this->getHookInvocationsForState($hook, $state);
 
@@ -69,22 +63,25 @@ class InstallUtility {
   }
 
   /**
-   * @param string $hook
-   *   Drupal hook to be invoked.
+   * Invoke hook_install_tasks for included profiles.
+   *
+   * NOTE: Drupal passes &$install_state to implementers of this hook by
+   * reference. This makes the implementation here less generic than the basic
+   * hook invocation methods (invokeHook, invokeHookWithParams,
+   * invokeHookWithParamsForState). So, to keep things simple, this is
+   * specifically for hook_install_tasks.
    *
    * @param array $state
-   *   Install state or form state.
+   *   Install state .
+   *
+   * @return array
+   *   Array of tasks.
+   *   @see hook_install_tasks
    */
-  public function invokeHookForState($hook, $state) {
+  public function invokeHookInstallTasks(&$state) {
+    $hook = 'hook_install_tasks';
     $results = array();
 
-    // Keep track of state. Only invoke hooks once per state, so we don't get
-    // trapped in a loop.
-    if ($this->isNewStateForHookInvocations($state, $hook)) {
-      $this->setUpNewHookInvocationsForState($hook, $state);
-    }
-
-    // Give included profiles an opportunity to add tasks.
     $invocations = $this->getHookInvocationsForState($hook, $state);
 
     foreach ($invocations as $implementation_info) {
@@ -157,7 +154,8 @@ class InstallUtility {
    * Get hook implementations to be invoked for designated state.
    *
    * hook_invocations keeps track of hooks invoked per install state and form
-   * state so we don't invoke the same hook implementation multiple times per state.
+   * state so we don't invoke the same hook implementation multiple times per
+   * state. Otherwise, it's easy to get trapped in a loop.
    *
    * @param string $hook
    *   Hook we want info about.
@@ -169,8 +167,15 @@ class InstallUtility {
    *  @see ProfileInstaller::setUpNewHookInvocationsForState
    */
   private function getHookInvocationsForState($hook, array $state) {
-    $key = $this->getKeyForArray($state);
+    // Keep track of state. Only invoke hooks once per state, so we don't get
+    // trapped in a loop.
+    if ($this->isNewStateForHookInvocations($state, $hook)) {
+      $this->setUpNewHookInvocationsForState($hook, $state);
+    }
+
+    $key = $this->getKeyForState($state);
     $invocations = !empty($this->hook_invocations[$hook][$key]) ? $this->hook_invocations[$hook][$key] : array();
+
     return $invocations;
   }
 
@@ -235,11 +240,48 @@ class InstallUtility {
     $this->hook_invocations[$hook][$key][$function]['invoked'] = TRUE;
   }
 
+  /**
+   * Provides a hash key for an arbitrary array.
+   *
+   * @param array $array
+   *   Any array.
+   *
+   * @return string
+   *   MD5 hash.
+   */
   private static function getKeyForArray(array $array) {
     return md5(serialize($array));
   }
 
-  // ---------------------------------------------------------------------------
+  /**
+   * Provides a hash key for form state and install state.
+   * @see InstallUtility::getKeyForArray().
+   */
+  private static function getKeyForState(array $array) {
+    return self::getKeyForArray($array);
+  }
+
+  /*****************************************************************************
+   * As of 11/24/14, utilities for invoking hooks below are not actually used
+   * anywhere right now. But they seem potentially very useful if this utility
+   * needs to provide support for more hooks. So, don't remove them yet.
+   *
+   * Here's a summary of how we're currently handling supported hooks (@see
+   * ProfileUtility::getSupportedHooks().
+   *
+   * Supported alter hooks use InstallUtility::invokeAlterOnDataForState:
+   *
+   * - hook_install_tasks_alter
+   * - hook_form_install_configure_form_alter
+   *
+   * These hooks have custom handling:
+   *
+   * - hook_install_tasks, generic solution below doesn't work with
+   *   install_state passed by reference
+   * - hook_install, generic solution below doesn't enable parent profiles to
+   *   anticipate and resolve conflicts between included profiles' install hooks
+   *   (for example see standard2)
+   ****************************************************************************/
 
   /**
    * Invokes hooks before commands like module_invoke are available.
@@ -248,10 +290,10 @@ class InstallUtility {
    *   Hook being invoked.
    *
    * @param $params
-   *   Params to pass to hook invocation.
+   *   (Optional) Params to pass to hook invocation.
    *
    * @param $state
-   *   Install state or form state, if available. Hooks will only be invoked once
+   *   (Optional) Install state or form state, if available. Hooks will only be invoked once
    *   per state (or once at all if no state is provided).
    *
    * @return array
@@ -259,13 +301,7 @@ class InstallUtility {
    *
    * @throws Exception
    */
-  private function invokeHookWithParamsForState($hook, $params, $state = array()) {
-    // Hooks should only be invoked once per install state or form state,
-    // otherwise it's easy to get trapped in a loop.
-    if ($this->isNewStateForHookInvocations($state, $hook)) {
-      $this->setUpNewHookInvocationsForState($hook, $state);
-    }
-
+  public function invokeHookWithParamsForState($hook, $params = array(), $state = array()) {
     $invocations = $this->getHookInvocationsForState($hook, $state);
 
     $results = array();
@@ -287,6 +323,22 @@ class InstallUtility {
     }
 
     return $results;
+  }
+
+  /**
+   * Invokes Drupal hook in included profiles with specified params.
+   * @see InstallUtility::invokeHookWithParamsForState()
+   */
+  public function invokeHookWithParams($hook, $params) {
+    return $this->invokeHookWithParamsForState($hook, $params);
+  }
+
+  /**
+   * Invokes Drupal hook in included profiles.
+   * @see InstallUtility::invokeHookWithParamsForState()
+   */
+  public function invokeHook($hook) {
+    return $this->invokeHookWithParamsForState($hook);
   }
 
 }

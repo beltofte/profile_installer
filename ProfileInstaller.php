@@ -114,18 +114,18 @@ class ProfileInstaller {
   /**
    * Run install scripts.
    *
-   * This runs after the baseprofile's install hook has already run and after
+   * This runs after the top-level profile's install hook has already run and after
    * modules have been installed.
    *
    * By default, this simply invokes hook_install for included profiles.
    * For more advanced uses install profiles can modify the list of callbacks
-   * invoked here.
+   * invoked here (see example in standard2 profile).
    *
    * @see ProfileInstaller::getInstallTasks
    * @see profile_installer_install_profiles()
    */
   public function install() {
-    foreach ($this->install_callbacks as $callback => $path) {
+    foreach ($this->getInstallCallbacks() as $callback => $path) {
       include_once $path;
       call_user_func($callback);
     }
@@ -151,8 +151,7 @@ class ProfileInstaller {
       ),
     );
 
-    // InstallUtility::invokeHookForInstaller($hook, $this);
-    $results = $this->install_utility->invokeHookWithParamsForState('hook_install_tasks', $install_state, $install_state);
+    $results = $this->install_utility->invokeHookInstallTasks($install_state);
     $tasks = array_merge($tasks, $results);
 
     // Store this so it can be returned in case anyone alters it, when passed by
