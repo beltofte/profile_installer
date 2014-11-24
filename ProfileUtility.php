@@ -213,10 +213,10 @@ class ProfileUtility {
    *
    * @return array
    *   Returns an associative array of hooks implementations like this:
-   *   $hook_implementations[$hook][$function] = $file;
+   *   $included_hook_implementations[$hook][$function] = $file;
    */
-  public static function findHookImplementationsInProfile($profile_name) {
-    $hook_implementations = array();
+  public static function findHookImplementationsInIncludedProfiles($profile_name) {
+    $included_hook_implementations = array();
 
     $supported_hooks = self::getSupportedHooks();
     $profile_names = self::getIncludedProfiles($profile_name);
@@ -225,12 +225,12 @@ class ProfileUtility {
       foreach ($profile_names as $profile_name) {
         $function = self::getHookImplementationForProfile($hook, $profile_name);
         if ($file = self::findFunctionInProfile($function, $profile_name)) {
-          $hook_implementations[$hook][$function] = $file;
+          $included_hook_implementations[$hook][$function] = $file;
         }
       }
     }
 
-    return $hook_implementations;
+    return $included_hook_implementations;
   }
 
   /**
@@ -244,10 +244,10 @@ class ProfileUtility {
    */
   public static function getHookImplementationsInProfile($hook, Profile $profile) {
     $implementations = array();
-    $hook_implementations = $profile->hook_implementations;
+    $included_hook_implementations = $profile->included_hook_implementations;
 
-    if (!empty($hook_implementations[$hook])) {
-      foreach ($hook_implementations[$hook] as $function => $file) {
+    if (!empty($included_hook_implementations[$hook])) {
+      foreach ($included_hook_implementations[$hook] as $function => $file) {
         $implementations[$function] = $file;
       }
     }

@@ -79,8 +79,8 @@ class ProfileInstaller {
    */
   public function setInstallCallbacks($callbacks = array()) {
     if (empty($callbacks)) {
-      $hook_implementations = $this->profile->hook_implementations;
-      foreach ($hook_implementations['hook_install'] as $function => $file) {
+      $included_hook_implementations = $this->profile->included_hook_implementations;
+      foreach ($included_hook_implementations['hook_install'] as $function => $file) {
         $callbacks[$function] = $file;
       }
     }
@@ -274,12 +274,12 @@ class ProfileInstaller {
    * @throws Exception
    */
   private function setUpNewHookInvocationsForState($hook, array $state) {
-    if (empty($this->profile->hook_implementations[$hook])) {
+    if (empty($this->profile->included_hook_implementations[$hook])) {
       // $hook is not implemented by included profiles.
       return;
     }
 
-    $implementations = $this->profile->hook_implementations[$hook];
+    $implementations = $this->profile->included_hook_implementations[$hook];
     $key = $this->getKeyForArray($state);
 
     if (isset($this->hook_invocations[$hook][$key])) {

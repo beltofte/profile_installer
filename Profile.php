@@ -20,8 +20,9 @@ class Profile {
   // Keep track of profiles included by baseprofile or included profiles.
   public $included_profiles;
 
-  // Keep track of which supported hooks have been implemented by included profiles.
-  public $hook_implementations;
+  // Keep track of supported hooks implemented by included profiles. (That is,
+  // hooks NOT implemented by profile being installed, only its included profiles.)
+  public $included_hook_implementations;
 
   // 'install_profile_modules' is the variable name used by Drupal core to keep
   // track of an install profile's dependencies and then install them. The same
@@ -88,9 +89,9 @@ class Profile {
 
   private function setHookImplementations() {
     $profile_name = $this->profile_name;
-    $hook_implementations = $this->profile_utility->findHookImplementationsInProfile($profile_name);
+    $included_hook_implementations = $this->profile_utility->findHookImplementationsInIncludedProfiles($profile_name);
 
-    $this->hook_implementations = $hook_implementations;
+    $this->included_hook_implementations = $included_hook_implementations;
   }
 
 }
