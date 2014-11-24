@@ -1,17 +1,15 @@
 <?php
 
 /**
- * TODO REFACTOR
- * [ ] find all calls to $this->profile->profile_utility below. Push down to profile.
- */
-
-/**
  * @file ProfileInstaller.php
  * Provides ProfileInstaller class.
  */
 require_once __DIR__ . '/Profile.php';
 require_once __DIR__ . '/ProfileUtility.php';
 
+/**
+ * ProfileInstaller is the controller class for managing profile installation.
+ */
 class ProfileInstaller {
 
   // ProfileInstaller is a singleton. ::getInstallerForProfile stores instance here.
@@ -77,15 +75,13 @@ class ProfileInstaller {
    * instantiates ProfileInstaller.
    *
    * @param array $callbacks
+   *   Associative array of files containing callbacks, keyed by function name.
    */
   public function setInstallCallbacks($callbacks = array()) {
     if (empty($callbacks)) {
-      $included_profiles = $this->profile->included_profiles;
-      foreach ($included_profiles as $profile_name) {
-        $function = "{$profile_name}_install";
-        if ($file = $this->profile->profile_utility->findFunctionInProfile($function, $profile_name)) {
-          $callbacks[$function] = $file;
-        }
+      $hook_implementations = $this->profile->hook_implementations;
+      foreach ($hook_implementations['hook_install'] as $function => $file) {
+        $callbacks[$function] = $file;
       }
     }
 
@@ -278,7 +274,7 @@ class ProfileInstaller {
    * @throws Exception
    */
   private function setUpNewHookInvocationsForState($hook, array $state) {
-    $implementations = $this->profile->profile_utility->getHookImplementationsInProfile($hook, $this->profile);
+    $implementations = $this->profile->hook_implementations[$hook];
     $key = $this->getKeyForArray($state);
 
     if (isset($this->hook_invocations[$hook][$key])) {

@@ -9,7 +9,7 @@
  */
 class Profile {
   //
-  public $profile_utility;
+  private $profile_utility;
 
   // First profile to instantiate ProfileInstaller (the one selected via Drupal
   // GUI or specified by `drush site-install <profile>` command) is the "baseprofile".
