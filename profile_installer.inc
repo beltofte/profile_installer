@@ -6,14 +6,24 @@
 require_once DRUPAL_ROOT . '/profiles/profile_installer/ProfileInstaller.php';
 
 /**
- * Callback for task to install profiles' dependencies.
+ * Install profiles included by top-level profile.
  *
- * Core's hook_install_tasks does not support methods of objects, this has to be
- * a standalone function.
+ * The callback below is registered with hook_install_tasks by ProfileInstaller.
+ */
+function profile_installer_install_profiles(&$install_state) {
+  $installer = ProfileInstaller::getInstallerForProfile();
+  $installer->install();
+}
+
+/**
+ * Install profile dependencies. Replaces core install_profile_modules callback.
  *
- * The core logic here is copied from install_profile_modules() in install.core.inc.
- * We just merge our own list of modules from profiles' info files to populate
- * the modules list.
+ * Most of the code below is copied from install_profile_modules() in
+ * install.core.inc. We just merge our own list of modules from profiles' info
+ * files to populate the modules list.
+ *
+ * Core's hook_install_tasks does not support methods of objects as callbacks.
+ * The callback provided below has to live outside the ProfileInstaller class.
  */
 function profile_installer_install_modules(&$install_state) {
   $installer = ProfileInstaller::getInstallerForProfile();
@@ -66,7 +76,3 @@ function profile_installer_install_modules(&$install_state) {
   return $batch;
 }
 
-function profile_installer_install_profiles(&$install_state) {
-  $installer = ProfileInstaller::getInstallerForProfile();
-  $installer->install();
-}

@@ -68,7 +68,7 @@ class ProfileInstaller {
    * Set install callbacks to run during installation.
    *
    * These callbacks run after modules have been installed and after
-   * baseprofile's install script has run.
+   * the top-level profile's install script has run.
    *
    * Defaults to using all included profiles' install hooks. This list of
    * callbacks can be inspected, modified, and overridden by any profile that
