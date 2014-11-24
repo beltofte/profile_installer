@@ -274,6 +274,11 @@ class ProfileInstaller {
    * @throws Exception
    */
   private function setUpNewHookInvocationsForState($hook, array $state) {
+    if (empty($this->profile->hook_implementations[$hook])) {
+      // $hook is not implemented by included profiles.
+      return;
+    }
+
     $implementations = $this->profile->hook_implementations[$hook];
     $key = $this->getKeyForArray($state);
 
