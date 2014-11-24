@@ -3,7 +3,6 @@
  * @file Profile.php
  * Provides Profile class.
  */
-require_once __DIR__ . '/ProfileUtility.php';
 
 /**
  * Profile is a data transfer object with info about the profile being installed.
