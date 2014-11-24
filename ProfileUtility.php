@@ -161,6 +161,7 @@ class ProfileUtility {
    */
   public static function getSupportedHooks() {
     return array(
+      'hook_install',
       'hook_install_tasks',
       'hook_install_tasks_alter',
       'hook_form_install_configure_form_alter',
