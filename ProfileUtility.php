@@ -241,7 +241,7 @@ class ProfileUtility {
    * @return array
    *   Associative array of files with functions, keyed by function name.
    */
-  public function getHookImplementationsInProfile($hook, Profile $profile) {
+  public static function getHookImplementationsInProfile($hook, Profile $profile) {
     $implementations = array();
     $hook_implementations = $profile->hook_implementations;
 
