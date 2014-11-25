@@ -120,7 +120,22 @@
     </exec>
   </target>
 
-  <target name="install" depends="drush-make" unless="drush.noinstall" description="Run drush site-install">
+  <target name="symlink-example-profiles" depends="drush-make" description="Symlink example profiles into profiled directory">
+    <!-- Symlink standard2 profile from profile_installer/examples/standard2 into build/docroot/profiles/standard2 -->
+    <exec executable="ln" taskname="link">
+      <arg value="-s"/>
+      <arg value="${builddir}/docroot/profiles/profile_installer/examples/standard2"/>
+      <arg value="${builddir}/docroot/profiles/standard2"/>
+    </exec>
+    <!-- Symlink standard3 profile from profile_installer/examples/standard2 into build/docroot/profiles/standard3 -->
+    <exec executable="ln" taskname="link">
+      <arg value="-s"/>
+      <arg value="${builddir}/docroot/profiles/profile_installer/examples/standard3"/>
+      <arg value="${builddir}/docroot/profiles/standard3"/>
+    </exec>
+  </target>
+
+  <target name="install" depends="drush-make,symlink-example-profiles" unless="drush.noinstall" description="Run drush site-install">
     <exec executable="${drush}" dir="${docroot}" taskname="drush">
       <env key="DRUSH_PHP" value="${php}"/>
       <arg value="site-install"/>
