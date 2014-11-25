@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project name="Profile Installer" default="build">
 
-  <property name="drupal.profile" value="minimal_ci"/>
+  <property name="drupal.profile" value="profile_installer"/>
 
   <property name="builddir" value="${basedir}/build"/>
   <property name="selenium" value="${builddir}/selenium-server-standalone.jar"/>
