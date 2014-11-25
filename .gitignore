@@ -1,1 +1,15 @@
-.idea*
+# Ignore vim stuff.
+*.swp
+*.swo
+
+# Ignore PHP Storm.
+*.idea
+
+# Ignore OSX Stuff 
+*.DS_Store
+
+# Vagrant
+*.vdi
+
+# Ignore Ant test builds.
+build/*
